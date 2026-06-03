@@ -61,6 +61,29 @@ MSRP** columns.
 > The session expires, so re-capture the HAR when pricing stops coming through.
 > `*.har` is git-ignored and never committed (it contains session tokens).
 
+## Post to a Discord channel
+
+Post a summary message (grouped by size, with B2B pricing when `--har` is used)
+and attach the PDF to a Discord channel via a webhook.
+
+1. In Discord: **Channel -> Edit Channel -> Integrations -> Webhooks ->
+   New Webhook -> Copy Webhook URL**.
+2. Provide the URL via the `VAULTX_DISCORD_WEBHOOK` env var (keeps it out of
+   shell history) or the `--discord-webhook` flag, then run as normal:
+
+   ```powershell
+   $env:VAULTX_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/XXXX/YYYY"
+   py scrape_vaultx.py --all --har "session.har" --out VaultX_Stock_B2B.pdf
+   ```
+
+   ```sh
+   # or pass it directly
+   py scrape_vaultx.py --discord-webhook "https://discord.com/api/webhooks/XXXX/YYYY"
+   ```
+
+> A webhook URL is a secret - anyone with it can post to that channel. Don't
+> commit it; rotate it in Discord if it leaks.
+
 ## Notes
 
 - Without `--har`, prices are the public MSRP from the storefront listing.
