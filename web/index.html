@@ -111,6 +111,25 @@
     return `<span class="badge b-out"><span class="dot"></span>Sold out</span>`;
   }
 
+  // Concise size label from a full product title, e.g.
+  // "12-Pocket Exo-Tec® Zip Binder XL" -> "12-Pocket XL".
+  function shortSize(title) {
+    const m = title.match(/(\d+)-Pocket/i);
+    let s = m ? `${m[1]}-Pocket` : title;
+    if (/XXL/i.test(title)) s += " XXL";
+    else if (/\bXL\b/i.test(title)) s += " XL";
+    if (/ME4/i.test(title)) s += " ME4";
+    return s;
+  }
+  // Sort rank so sizes read 4 -> 9 -> 12 -> 12 XL -> 16 XXL.
+  function sizeRank(title) {
+    const m = title.match(/(\d+)-Pocket/i);
+    let n = m ? parseInt(m[1], 10) : 999;
+    if (/XXL/i.test(title)) n += 0.2;
+    else if (/\bXL\b/i.test(title)) n += 0.1;
+    return n;
+  }
+
   function render() {
     const items = STOCK.items;
     const counts = { "In Stock": 0, "Pre-Order": 0, "Sold Out": 0 };
@@ -127,27 +146,37 @@
       `<div class="stat"><div class="n" style="color:${c}">${n}</div><div class="l">${l}</div></div>`
     ).join("");
 
-    // group by size, preserve order of first appearance
+    // group by color (case-insensitive key so "Forest Green" / "Forest green"
+    // merge), display the first-seen label, preserve order of first appearance
     const order = [];
-    const bySize = {};
+    const byColor = {};
+    const label = {};
     for (const i of items) {
-      if (!(i.size in bySize)) { bySize[i.size] = []; order.push(i.size); }
-      bySize[i.size].push(i);
+      const key = i.color.toLowerCase();
+      if (!(key in byColor)) { byColor[key] = []; label[key] = i.color; order.push(key); }
+      byColor[key].push(i);
     }
 
     const q = query.trim().toLowerCase();
     let html = "";
-    for (const size of order) {
-      let rows = bySize[size];
+    for (const key of order) {
+      const color = label[key];
+      let rows = byColor[key];
       if (filter === "instock") rows = rows.filter((r) => r.status === "In Stock");
-      if (q) rows = rows.filter((r) => (size + " " + r.color).toLowerCase().includes(q));
+      if (q) rows = rows.filter((r) => (color + " " + shortSize(r.size)).toLowerCase().includes(q));
       if (!rows.length) continue;
+      rows = rows.slice().sort((a, b) => sizeRank(a.size) - sizeRank(b.size));
 
-      html += `<div class="group"><h2>${size}<span class="price-tiers">${tiers(rows[0])}</span></h2>`;
-      html += `<table><thead><tr><th>Color</th><th>SKU</th><th class="num">Status</th></tr></thead><tbody>`;
+      const inStock = rows.filter((r) => r.status === "In Stock").length;
+      html += `<div class="group"><h2>${color}` +
+              `<span class="price-tiers">${inStock} of ${rows.length} in stock</span></h2>`;
+      html += `<table><thead><tr><th>Size</th><th>SKU</th>` +
+              `<th class="num">Price</th><th class="num">Status</th></tr></thead><tbody>`;
       for (const r of rows) {
         const cls = r.status === "Sold Out" ? "is-out" : "";
-        html += `<tr class="${cls}"><td>${r.color}</td><td>${r.sku}</td><td class="num status-cell">${badge(r.status)}</td></tr>`;
+        html += `<tr class="${cls}"><td>${shortSize(r.size)}</td><td>${r.sku}</td>` +
+                `<td class="num">${tiers(r)}</td>` +
+                `<td class="num status-cell">${badge(r.status)}</td></tr>`;
       }
       html += `</tbody></table></div>`;
     }

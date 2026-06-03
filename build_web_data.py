@@ -21,26 +21,26 @@ import scrape_vaultx as vx
 # always appear on the site. MSRP matches their Metallic siblings; B2B pricing
 # is from a logged-in capture. Update status/prices here if they change.
 EXTRA_ROWS = [
-    {
-        "size": "12-Pocket Exo-Tec® Zip Binder Just Pink",
-        "color": "Just Pink",
-        "sku": "VX-EX01-12MPK",
-        "price": 28.99,            # MSRP
-        "available": False,
-        "status": "Sold Out",
-        "b2b_min1": 22.46,
-        "b2b_breaks": [[12, 20.21]],
-    },
-    {
-        "size": "9-Pocket Exo-Tec® Zip Binder Just Purple",
-        "color": "Just Purple",
-        "sku": "VX-EX01-09MPR",
-        "price": 23.99,            # MSRP
-        "available": False,
-        "status": "Sold Out",
-        "b2b_min1": 19.44,
-        "b2b_breaks": [[12, 17.49]],
-    },
+    # Just Pink (4 / 9 / 12 pocket) - MSRP matches Metallic siblings by size.
+    {"size": "4-Pocket Exo-Tec® Zip Binder Just Pink", "color": "Just Pink",
+     "sku": "VX-EX01-04MPK", "price": 16.99, "available": False,
+     "status": "Sold Out", "b2b_min1": 13.34, "b2b_breaks": [[12, 12.01]]},
+    {"size": "9-Pocket Exo-Tec® Zip Binder Just Pink", "color": "Just Pink",
+     "sku": "VX-EX01-09MPK", "price": 23.99, "available": False,
+     "status": "Sold Out", "b2b_min1": 19.44, "b2b_breaks": [[12, 17.49]]},
+    {"size": "12-Pocket Exo-Tec® Zip Binder Just Pink", "color": "Just Pink",
+     "sku": "VX-EX01-12MPK", "price": 28.99, "available": False,
+     "status": "Sold Out", "b2b_min1": 22.46, "b2b_breaks": [[12, 20.21]]},
+    # Just Purple (4 / 9 / 12 pocket)
+    {"size": "4-Pocket Exo-Tec® Zip Binder Just Purple", "color": "Just Purple",
+     "sku": "VX-EX01-04MPR", "price": 16.99, "available": False,
+     "status": "Sold Out", "b2b_min1": 13.34, "b2b_breaks": [[12, 12.01]]},
+    {"size": "9-Pocket Exo-Tec® Zip Binder Just Purple", "color": "Just Purple",
+     "sku": "VX-EX01-09MPR", "price": 23.99, "available": False,
+     "status": "Sold Out", "b2b_min1": 19.44, "b2b_breaks": [[12, 17.49]]},
+    {"size": "12-Pocket Exo-Tec® Zip Binder Just Purple", "color": "Just Purple",
+     "sku": "VX-EX01-12MPR", "price": 28.99, "available": False,
+     "status": "Sold Out", "b2b_min1": 22.46, "b2b_breaks": [[12, 20.21]]},
 ]
 
 

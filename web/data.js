@@ -365,6 +365,24 @@ const STOCK = {
       "status": "Pre-Order"
     },
     {
+      "size": "4-Pocket Exo-Tec® Zip Binder Just Pink",
+      "color": "Just Pink",
+      "sku": "VX-EX01-04MPK",
+      "msrp": 16.99,
+      "b2b_min1": null,
+      "breaks": [],
+      "status": "Sold Out"
+    },
+    {
+      "size": "9-Pocket Exo-Tec® Zip Binder Just Pink",
+      "color": "Just Pink",
+      "sku": "VX-EX01-09MPK",
+      "msrp": 23.99,
+      "b2b_min1": null,
+      "breaks": [],
+      "status": "Sold Out"
+    },
+    {
       "size": "12-Pocket Exo-Tec® Zip Binder Just Pink",
       "color": "Just Pink",
       "sku": "VX-EX01-12MPK",
@@ -374,10 +392,28 @@ const STOCK = {
       "status": "Sold Out"
     },
     {
+      "size": "4-Pocket Exo-Tec® Zip Binder Just Purple",
+      "color": "Just Purple",
+      "sku": "VX-EX01-04MPR",
+      "msrp": 16.99,
+      "b2b_min1": null,
+      "breaks": [],
+      "status": "Sold Out"
+    },
+    {
       "size": "9-Pocket Exo-Tec® Zip Binder Just Purple",
       "color": "Just Purple",
       "sku": "VX-EX01-09MPR",
       "msrp": 23.99,
+      "b2b_min1": null,
+      "breaks": [],
+      "status": "Sold Out"
+    },
+    {
+      "size": "12-Pocket Exo-Tec® Zip Binder Just Purple",
+      "color": "Just Purple",
+      "sku": "VX-EX01-12MPR",
+      "msrp": 28.99,
       "b2b_min1": null,
       "breaks": [],
       "status": "Sold Out"
