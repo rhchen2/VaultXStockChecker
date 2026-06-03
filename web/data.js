@@ -363,6 +363,24 @@ const STOCK = {
       "b2b_min1": null,
       "breaks": [],
       "status": "Pre-Order"
+    },
+    {
+      "size": "12-Pocket Exo-Tec® Zip Binder Just Pink",
+      "color": "Just Pink",
+      "sku": "VX-EX01-12MPK",
+      "msrp": 28.99,
+      "b2b_min1": null,
+      "breaks": [],
+      "status": "Sold Out"
+    },
+    {
+      "size": "9-Pocket Exo-Tec® Zip Binder Just Purple",
+      "color": "Just Purple",
+      "sku": "VX-EX01-09MPR",
+      "msrp": 23.99,
+      "b2b_min1": null,
+      "breaks": [],
+      "status": "Sold Out"
     }
   ]
 };

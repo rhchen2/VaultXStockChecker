@@ -22,7 +22,7 @@ import subprocess
 import sys
 
 import scrape_vaultx as vx
-from build_web_data import write_web_data
+from build_web_data import write_web_data, extra_rows
 
 WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 
@@ -65,6 +65,7 @@ def main():
         return 1
 
     rows = vx.build_rows(products, b2b_map=b2b_map)
+    rows += extra_rows(include_b2b=True)  # login-gated products (with B2B pricing)
     write_web_data(rows, args.collection, args.out, generated_by="make_b2b_site.py")
 
     if args.no_deploy:

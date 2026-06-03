@@ -16,6 +16,45 @@ import json
 
 import scrape_vaultx as vx
 
+# Products that are NOT in the public collection feed (login-gated, so they
+# 404 anonymously and the unattended cron can't fetch them). Hard-coded so they
+# always appear on the site. MSRP matches their Metallic siblings; B2B pricing
+# is from a logged-in capture. Update status/prices here if they change.
+EXTRA_ROWS = [
+    {
+        "size": "12-Pocket Exo-Tec® Zip Binder Just Pink",
+        "color": "Just Pink",
+        "sku": "VX-EX01-12MPK",
+        "price": 28.99,            # MSRP
+        "available": False,
+        "status": "Sold Out",
+        "b2b_min1": 22.46,
+        "b2b_breaks": [[12, 20.21]],
+    },
+    {
+        "size": "9-Pocket Exo-Tec® Zip Binder Just Purple",
+        "color": "Just Purple",
+        "sku": "VX-EX01-09MPR",
+        "price": 23.99,            # MSRP
+        "available": False,
+        "status": "Sold Out",
+        "b2b_min1": 19.44,
+        "b2b_breaks": [[12, 17.49]],
+    },
+]
+
+
+def extra_rows(include_b2b):
+    """Return the hard-coded extra products, with or without B2B pricing."""
+    out = []
+    for e in EXTRA_ROWS:
+        r = dict(e)
+        if not include_b2b:
+            r["b2b_min1"] = None
+            r["b2b_breaks"] = []
+        out.append(r)
+    return out
+
 
 def write_web_data(rows, collection, out_path, generated_by="build_web_data.py"):
     """Write the front-end data file (web/data.js) from scraped rows.
@@ -59,6 +98,7 @@ def main():
 
     products = vx.fetch_products(args.collection)
     rows = vx.build_rows(products)  # public only -> b2b fields are None/empty
+    rows += extra_rows(include_b2b=False)  # login-gated products (public view)
     write_web_data(rows, args.collection, args.out)
 
 
