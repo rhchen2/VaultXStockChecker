@@ -191,6 +191,61 @@ def ascii_safe(text):
     return text.encode("ascii", "replace").decode("ascii")
 
 
+def build_discord_summary(rows, collection):
+    """Build a compact Discord message summarising in-stock items + pricing.
+
+    One line per size, listing the in-stock colors and the price tiers
+    (B2B 1+/volume if available, otherwise MSRP). Kept under Discord's 2000
+    character limit.
+    """
+    in_stock = [r for r in rows if r["status"] == "In Stock"]
+    preorder = [r for r in rows if r["status"] == "Pre-Order"]
+    now = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    lines = [
+        f"**Vault X — {collection} stock**  ({now})",
+        f"{len(in_stock)} of {len(rows)} size/color combos in stock"
+        + (f", {len(preorder)} pre-order/drop." if preorder else "."),
+        "",
+    ]
+
+    # Group by size, preserving sorted order.
+    by_size = {}
+    for r in sorted(in_stock, key=lambda r: (r["size"], r["color"])):
+        by_size.setdefault(r["size"], []).append(r)
+
+    for size, items in by_size.items():
+        colors_list = ", ".join(i["color"] for i in items)
+        sample = items[0]
+        if sample.get("b2b_min1") is not None:
+            price = f"1+ {fmt_price(sample['b2b_min1'])}"
+            for q, p in sample.get("b2b_breaks", []):
+                price += f" / {q}+ {fmt_price(p)}"
+        else:
+            price = fmt_price(sample["price"])
+        line = f"• **{size}** — {colors_list} — {price}"
+        lines.append(line)
+
+    content = "\n".join(lines)
+    # Discord hard limit is 2000 chars for `content`.
+    if len(content) > 1990:
+        content = content[:1985] + "\n…"
+    return content
+
+
+def post_to_discord(webhook_url, pdf_path, rows, collection):
+    """Post the summary message with the PDF attached to a Discord webhook."""
+    import json
+    content = build_discord_summary(rows, collection)
+    payload = {"content": content, "username": "VaultX Stock Checker"}
+    with open(pdf_path, "rb") as fh:
+        files = {"file": ("VaultX_Stock_Report.pdf", fh, "application/pdf")}
+        data = {"payload_json": json.dumps(payload)}
+        resp = requests.post(webhook_url, data=data, files=files, timeout=30)
+    resp.raise_for_status()
+    return resp.status_code
+
+
 def build_pdf(rows, out_path, collection, include_oos=False):
     """Render the stock report to a PDF."""
     in_stock = [r for r in rows if r["status"] == "In Stock"]
@@ -356,7 +411,13 @@ def main():
     parser.add_argument("--har", default=None,
                         help="Path to a HAR file from a logged-in us.b2b.vaultx.com "
                              "session; adds B2B per-item pricing (1+, volume, MSRP)")
+    parser.add_argument("--discord-webhook", default=None,
+                        help="Discord webhook URL to post the summary + PDF to. "
+                             "Falls back to the VAULTX_DISCORD_WEBHOOK env var.")
     args = parser.parse_args()
+
+    import os
+    webhook = args.discord_webhook or os.environ.get("VAULTX_DISCORD_WEBHOOK")
 
     print(f"Fetching collection '{args.collection}' from {BASE_URL} ...")
     try:
@@ -405,6 +466,16 @@ def main():
 
     build_pdf(rows, args.out, args.collection, include_oos=args.include_oos)
     print(f"PDF written to: {args.out}")
+
+    if webhook:
+        print("Posting report to Discord webhook ...")
+        try:
+            code = post_to_discord(webhook, args.out, rows, args.collection)
+            print(f"Posted to Discord (HTTP {code}).")
+        except requests.RequestException as e:
+            print(f"ERROR posting to Discord: {e}", file=sys.stderr)
+            return 1
+
     return 0
 
 
