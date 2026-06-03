@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""
+One-command refresh of the web front-end *with B2B pricing*, then deploy.
+
+Unlike the daily GitHub Actions job (which is public/MSRP-only so it can run
+unattended), this pulls your logged-in B2B pricing from a browser HAR capture,
+rebuilds web/data.js with 1+/volume prices, and deploys to Vercel.
+
+    py make_b2b_site.py                       # auto-detect newest *.har, deploy
+    py make_b2b_site.py --har session.har     # explicit HAR
+    py make_b2b_site.py --no-deploy           # rebuild data.js only
+
+Note: the daily cron will overwrite the site back to public/MSRP pricing on its
+next run, so re-run this whenever you want the live site to show B2B pricing.
+Capture a fresh HAR when the session expires (see README).
+"""
+
+import argparse
+import glob
+import os
+import subprocess
+import sys
+
+import scrape_vaultx as vx
+from build_web_data import write_web_data
+
+WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
+
+
+def newest_har():
+    """Return the most recently modified *.har in the repo, or None."""
+    hars = glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "*.har"))
+    return max(hars, key=os.path.getmtime) if hars else None
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Rebuild web/data.js with B2B pricing and deploy")
+    parser.add_argument("--har", default=None,
+                        help="HAR file from a logged-in session (default: newest *.har)")
+    parser.add_argument("--collection", default=vx.DEFAULT_COLLECTION)
+    parser.add_argument("--out", default=os.path.join(WEB_DIR, "data.js"))
+    parser.add_argument("--no-deploy", action="store_true",
+                        help="Rebuild data.js but skip the Vercel deploy")
+    args = parser.parse_args()
+
+    har = args.har or newest_har()
+    if not har or not os.path.exists(har):
+        print("ERROR: no HAR file found. Capture one (see README) or pass --har.",
+              file=sys.stderr)
+        return 1
+    print(f"Using HAR: {har}")
+
+    products = vx.fetch_products(args.collection)
+    try:
+        cookie, user_agent = vx.load_har_session(har)
+        b2b_map = vx.fetch_b2b_pricing(products, cookie, user_agent)
+        print(f"Got B2B pricing for {len(b2b_map)} variants.")
+    except (OSError, ValueError) as e:
+        print(f"ERROR loading B2B pricing: {e}", file=sys.stderr)
+        return 1
+
+    if not b2b_map:
+        print("ERROR: no B2B pricing returned - the session has likely expired. "
+              "Capture a fresh HAR.", file=sys.stderr)
+        return 1
+
+    rows = vx.build_rows(products, b2b_map=b2b_map)
+    write_web_data(rows, args.collection, args.out, generated_by="make_b2b_site.py")
+
+    if args.no_deploy:
+        print("Skipping deploy (--no-deploy).")
+        return 0
+
+    print("Deploying to Vercel ...")
+    try:
+        subprocess.run(
+            ["npx", "--yes", "vercel", "deploy", "--prod", "--yes"],
+            cwd=WEB_DIR, check=True, shell=(os.name == "nt"),
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        print(f"ERROR deploying to Vercel: {e}", file=sys.stderr)
+        print("data.js was rebuilt; you can deploy manually from web/.", file=sys.stderr)
+        return 1
+    print("Done. Live site now shows B2B pricing (until the next daily run).")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

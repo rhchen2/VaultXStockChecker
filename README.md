@@ -84,6 +84,48 @@ and attach the PDF to a Discord channel via a webhook.
 > A webhook URL is a secret - anyone with it can post to that channel. Don't
 > commit it; rotate it in Discord if it leaks.
 
+## Web front-end
+
+A static page in [`web/`](web/) displays the stock from a hard-coded snapshot
+(`web/data.js`) — grouped by size, with In-stock/Pre-order/Sold-out badges,
+pricing, an in-stock/show-all toggle, and search. No backend or database.
+
+**Live:** https://web-five-lyart-32.vercel.app/
+
+Rebuild the snapshot and (re)deploy:
+
+```sh
+# Public/MSRP snapshot (matches the daily auto-update)
+py build_web_data.py            # regenerates web/data.js
+cd web && npx vercel deploy --prod
+
+# Snapshot WITH your B2B 1+/volume pricing, then deploy, in one command
+py make_b2b_site.py             # auto-detects the newest *.har, deploys
+py make_b2b_site.py --no-deploy # rebuild web/data.js only
+```
+
+> The clean URL `vaultx-stock-tracker.vercel.app` is gated by Vercel
+> Deployment Protection (returns 401). To make it public, disable it in
+> *Vercel → Project → Settings → Deployment Protection*. The generated
+> `web-five-lyart-32.vercel.app` domain is public regardless.
+
+## Daily auto-update (GitHub Actions)
+
+[`.github/workflows/update-stock.yml`](.github/workflows/update-stock.yml) runs
+daily (13:00 UTC), regenerates the **public** snapshot, commits it only if it
+changed, and redeploys to Vercel.
+
+One-time setup — add a repo secret so the job can deploy:
+
+1. Create a token at https://vercel.com/account/tokens.
+2. Repo **Settings → Secrets and variables → Actions → New repository secret**,
+   name `VERCEL_TOKEN`, paste the token.
+
+The Vercel project/org IDs are already in the workflow (they aren't secrets).
+Trigger a manual run from the **Actions** tab to test. The auto-updates are
+public/MSRP-only so they run unattended; use `make_b2b_site.py` to refresh the
+live site with B2B pricing on demand (the next daily run reverts it to public).
+
 ## Notes
 
 - Without `--har`, prices are the public MSRP from the storefront listing.
