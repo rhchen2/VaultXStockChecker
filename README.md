@@ -36,9 +36,35 @@ py scrape_vaultx.py --all
 py scrape_vaultx.py --collection deck-boxes --out DeckBoxes.pdf
 ```
 
+## B2B account pricing (`--har`)
+
+The public endpoints only expose the MSRP. The discounted B2B pricing
+(per-item `1+` price and quantity-break/`Volume` price) is only returned when
+the request carries your logged-in company session. To include it:
+
+1. Log in at `us.b2b.vaultx.com` so you can see your pricing.
+2. Open any product page, press **F12 -> Network**, tick **Preserve log**,
+   and reload the page.
+3. Right-click the request list -> **Save all as HAR with content** and save
+   the `.har` file.
+4. Run with `--har`:
+
+   ```sh
+   py scrape_vaultx.py --all --har "path/to/session.har" --out VaultX_Stock_B2B.pdf
+   ```
+
+The script reads the session cookie from the HAR, then fetches
+`/products/<handle>.js` for every product to get each variant's `1+` price,
+volume breaks, and quantity rule. The PDF then shows **1+ (ea) | Volume (ea) |
+MSRP** columns.
+
+> The session expires, so re-capture the HAR when pricing stops coming through.
+> `*.har` is git-ignored and never committed (it contains session tokens).
+
 ## Notes
 
-- Prices come from the public storefront listing. If you need account-specific
-  B2B pricing you'd have to authenticate, which this script does not do.
+- Without `--har`, prices are the public MSRP from the storefront listing.
 - The same script works for any Vault X collection by passing `--collection`
   with the collection's handle (the slug in its URL).
+- Pre-order/drop products (e.g. the ME4 editions) have no `.js` pricing
+  endpoint, so they fall back to MSRP and appear in the Pre-Order section.
