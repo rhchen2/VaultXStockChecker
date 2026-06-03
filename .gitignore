@@ -3,3 +3,11 @@ __pycache__/
 *.pdf
 vaultx_tmp.json
 .venv/
+# Local capture artifacts (may contain session tokens) - never commit
+*.har
+page.html
+sf_query.json
+sf_ctx.json
+me4.json
+tmp.json
+preview_*.png

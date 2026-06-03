@@ -142,6 +142,14 @@ def build_pdf(rows, out_path, collection, include_oos=False):
     section_style = ParagraphStyle(
         "Section", parent=styles["Heading2"], fontSize=13, spaceBefore=14, spaceAfter=6
     )
+    # Cell styles so long text wraps within its column instead of overflowing.
+    cell_style = ParagraphStyle(
+        "Cell", parent=styles["Normal"], fontSize=9, leading=11
+    )
+    cell_header_style = ParagraphStyle(
+        "CellHeader", parent=styles["Normal"], fontSize=9, leading=11,
+        textColor=colors.white, fontName="Helvetica-Bold",
+    )
 
     story = []
     now = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -159,36 +167,41 @@ def build_pdf(rows, out_path, collection, include_oos=False):
     story.append(Paragraph(summary, sub_style))
     story.append(Spacer(1, 0.15 * inch))
 
+    def esc(text):
+        return (str(text).replace("&", "&amp;").replace("<", "&lt;")
+                .replace(">", "&gt;"))
+
     def make_table(data_rows, accent_hex="#1b5e20"):
-        header = ["Size / Product", "Color", "SKU", "Price", "Status"]
+        header = [Paragraph(h, cell_header_style)
+                  for h in ["Size / Product", "Color", "SKU", "Price", "Status"]]
         table_data = [header]
         for r in data_rows:
             table_data.append(
                 [
-                    r["size"],
-                    r["color"],
-                    r["sku"],
+                    Paragraph(esc(r["size"]), cell_style),
+                    Paragraph(esc(r["color"]), cell_style),
+                    Paragraph(esc(r["sku"]), cell_style),
                     fmt_price(r["price"]),
                     r["status"],
                 ]
             )
         tbl = Table(
             table_data,
-            colWidths=[2.4 * inch, 1.5 * inch, 1.4 * inch, 0.85 * inch, 0.9 * inch],
+            colWidths=[2.3 * inch, 1.35 * inch, 1.4 * inch, 0.8 * inch, 0.85 * inch],
             repeatRows=1,
         )
         accent = colors.HexColor(accent_hex)
         style = [
             ("BACKGROUND", (0, 0), (-1, 0), accent),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
             ("FONTSIZE", (0, 0), (-1, -1), 9),
             ("ALIGN", (3, 0), (4, -1), "CENTER"),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cccccc")),
             ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f4f4f4")]),
-            ("TOPPADDING", (0, 0), (-1, -1), 4),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
         ]
         tbl.setStyle(TableStyle(style))
         return tbl
