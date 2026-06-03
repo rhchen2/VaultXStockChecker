@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vault X — Zip Binder Stock</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #171b22;
+    --panel-2: #1e232c;
+    --border: #2a313c;
+    --text: #e8edf2;
+    --muted: #98a2b3;
+    --green: #2ec27e;
+    --amber: #e0a64e;
+    --red: #e0566a;
+    --accent: #4f8cff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.45;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 18px 60px; }
+  header h1 { font-size: 1.7rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 0.9rem; }
+  .stats { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0 10px; }
+  .stat {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 16px; min-width: 110px;
+  }
+  .stat .n { font-size: 1.5rem; font-weight: 700; }
+  .stat .l { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: .04em; }
+  .controls { display: flex; gap: 8px; align-items: center; margin: 14px 0 4px; flex-wrap: wrap; }
+  .toggle {
+    background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    border-radius: 999px; padding: 7px 14px; cursor: pointer; font-size: 0.85rem;
+  }
+  .toggle.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .search {
+    flex: 1; min-width: 180px; background: var(--panel); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px; padding: 8px 12px; font-size: 0.9rem;
+  }
+  .group { margin-top: 22px; }
+  .group h2 { font-size: 1.05rem; margin: 0 0 4px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .price-tiers { font-size: 0.82rem; color: var(--muted); font-weight: 400; }
+  .price-tiers b { color: var(--green); font-weight: 600; }
+  .price-tiers .msrp { color: var(--muted); text-decoration: line-through; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; background: var(--panel); border-radius: 10px; overflow: hidden; }
+  th, td { text-align: left; padding: 9px 14px; font-size: 0.9rem; border-bottom: 1px solid var(--border); }
+  th { background: var(--panel-2); color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: .03em; }
+  tr:last-child td { border-bottom: none; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  th.num { text-align: right; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .b-in { background: rgba(46,194,126,.14); color: var(--green); }
+  .b-in .dot { background: var(--green); }
+  .b-pre { background: rgba(224,166,78,.14); color: var(--amber); }
+  .b-pre .dot { background: var(--amber); }
+  .b-out { background: rgba(224,86,106,.12); color: var(--red); }
+  .b-out .dot { background: var(--red); }
+  tr.is-out td:not(.status-cell) { opacity: 0.5; }
+  footer { margin-top: 40px; color: var(--muted); font-size: 0.8rem; text-align: center; }
+  a { color: var(--accent); }
+  .empty { color: var(--muted); padding: 30px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Vault X — Zip Binder Stock</h1>
+    <div class="sub" id="sub"></div>
+  </header>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="controls">
+    <button class="toggle active" data-filter="instock">In stock</button>
+    <button class="toggle" data-filter="all">Show all</button>
+    <input class="search" id="search" type="text" placeholder="Search size or color…" />
+  </div>
+
+  <div id="groups"></div>
+
+  <footer>
+    Prices are Vault X B2B account pricing (1+ / volume) with MSRP shown for reference.
+    Static snapshot — not live. Pre-order/drop items are listed separately.
+  </footer>
+</div>
+
+<script src="data.js"></script>
+<script>
+  const fmt = (n) => (n == null ? "—" : "$" + n.toFixed(2));
+  let filter = "instock";
+  let query = "";
+
+  function tiers(item) {
+    if (item.b2b_min1 == null) return `<span class="msrp">${fmt(item.msrp)}</span>`;
+    let s = `<b>1+ ${fmt(item.b2b_min1)}</b>`;
+    for (const [q, p] of item.breaks) s += ` &nbsp;·&nbsp; ${q}+ ${fmt(p)}`;
+    s += ` &nbsp;·&nbsp; <span class="msrp">MSRP ${fmt(item.msrp)}</span>`;
+    return s;
+  }
+
+  function badge(status) {
+    if (status === "In Stock") return `<span class="badge b-in"><span class="dot"></span>In stock</span>`;
+    if (status === "Pre-Order") return `<span class="badge b-pre"><span class="dot"></span>Pre-order</span>`;
+    return `<span class="badge b-out"><span class="dot"></span>Sold out</span>`;
+  }
+
+  function render() {
+    const items = STOCK.items;
+    const counts = { "In Stock": 0, "Pre-Order": 0, "Sold Out": 0 };
+    items.forEach((i) => (counts[i.status] = (counts[i.status] || 0) + 1));
+
+    document.getElementById("sub").textContent =
+      `Collection: ${STOCK.collection} · Snapshot ${STOCK.generated} · ${items.length} size/color combos`;
+
+    document.getElementById("stats").innerHTML = [
+      ["In stock", counts["In Stock"], "var(--green)"],
+      ["Pre-order", counts["Pre-Order"], "var(--amber)"],
+      ["Sold out", counts["Sold Out"], "var(--red)"],
+    ].map(([l, n, c]) =>
+      `<div class="stat"><div class="n" style="color:${c}">${n}</div><div class="l">${l}</div></div>`
+    ).join("");
+
+    // group by size, preserve order of first appearance
+    const order = [];
+    const bySize = {};
+    for (const i of items) {
+      if (!(i.size in bySize)) { bySize[i.size] = []; order.push(i.size); }
+      bySize[i.size].push(i);
+    }
+
+    const q = query.trim().toLowerCase();
+    let html = "";
+    for (const size of order) {
+      let rows = bySize[size];
+      if (filter === "instock") rows = rows.filter((r) => r.status === "In Stock");
+      if (q) rows = rows.filter((r) => (size + " " + r.color).toLowerCase().includes(q));
+      if (!rows.length) continue;
+
+      html += `<div class="group"><h2>${size}<span class="price-tiers">${tiers(rows[0])}</span></h2>`;
+      html += `<table><thead><tr><th>Color</th><th>SKU</th><th class="num">Status</th></tr></thead><tbody>`;
+      for (const r of rows) {
+        const cls = r.status === "Sold Out" ? "is-out" : "";
+        html += `<tr class="${cls}"><td>${r.color}</td><td>${r.sku}</td><td class="num status-cell">${badge(r.status)}</td></tr>`;
+      }
+      html += `</tbody></table></div>`;
+    }
+    document.getElementById("groups").innerHTML =
+      html || `<div class="empty">No items match.</div>`;
+  }
+
+  document.querySelectorAll(".toggle").forEach((b) =>
+    b.addEventListener("click", () => {
+      document.querySelectorAll(".toggle").forEach((x) => x.classList.remove("active"));
+      b.classList.add("active");
+      filter = b.dataset.filter;
+      render();
+    })
+  );
+  document.getElementById("search").addEventListener("input", (e) => {
+    query = e.target.value; render();
+  });
+
+  render();
+</script>
+</body>
+</html>
