@@ -72,6 +72,11 @@ def build_rows(products):
     rows = []
     for p in products:
         size = p.get("title", "").strip()
+        tags = {t.lower() for t in p.get("tags", [])}
+        # Shopify marks pre-order / drop variants as available:true even though
+        # there's no physical inventory, and these don't show in the normal
+        # collection grid. Treat them as a separate "pre-order" status.
+        is_preorder = bool(tags & {"pre-order", "preorder", "drop"})
         for v in p.get("variants", []):
             color = v.get("option1") or v.get("title") or ""
             price = v.get("price")
@@ -79,13 +84,21 @@ def build_rows(products):
                 price_val = float(price)
             except (TypeError, ValueError):
                 price_val = None
+            available = bool(v.get("available"))
+            if not available:
+                status = "Sold Out"
+            elif is_preorder:
+                status = "Pre-Order"
+            else:
+                status = "In Stock"
             rows.append(
                 {
                     "size": size,
                     "color": color.strip(),
                     "sku": v.get("sku") or "",
                     "price": price_val,
-                    "available": bool(v.get("available")),
+                    "available": available,
+                    "status": status,
                 }
             )
     return rows
@@ -105,8 +118,9 @@ def ascii_safe(text):
 
 def build_pdf(rows, out_path, collection, include_oos=False):
     """Render the stock report to a PDF."""
-    in_stock = [r for r in rows if r["available"]]
-    out_stock = [r for r in rows if not r["available"]]
+    in_stock = [r for r in rows if r["status"] == "In Stock"]
+    preorder = [r for r in rows if r["status"] == "Pre-Order"]
+    out_stock = [r for r in rows if r["status"] == "Sold Out"]
 
     doc = SimpleDocTemplate(
         out_path,
@@ -139,15 +153,13 @@ def build_pdf(rows, out_path, collection, include_oos=False):
             sub_style,
         )
     )
-    story.append(
-        Paragraph(
-            f"{len(in_stock)} of {len(rows)} size/color combinations in stock.",
-            sub_style,
-        )
-    )
+    summary = f"{len(in_stock)} of {len(rows)} size/color combinations in stock."
+    if preorder:
+        summary += f" {len(preorder)} available as pre-order/drop."
+    story.append(Paragraph(summary, sub_style))
     story.append(Spacer(1, 0.15 * inch))
 
-    def make_table(data_rows, in_stock_section=True):
+    def make_table(data_rows, accent_hex="#1b5e20"):
         header = ["Size / Product", "Color", "SKU", "Price", "Status"]
         table_data = [header]
         for r in data_rows:
@@ -157,7 +169,7 @@ def build_pdf(rows, out_path, collection, include_oos=False):
                     r["color"],
                     r["sku"],
                     fmt_price(r["price"]),
-                    "In Stock" if r["available"] else "Sold Out",
+                    r["status"],
                 ]
             )
         tbl = Table(
@@ -165,7 +177,7 @@ def build_pdf(rows, out_path, collection, include_oos=False):
             colWidths=[2.4 * inch, 1.5 * inch, 1.4 * inch, 0.85 * inch, 0.9 * inch],
             repeatRows=1,
         )
-        accent = colors.HexColor("#1b5e20" if in_stock_section else "#7f1d1d")
+        accent = colors.HexColor(accent_hex)
         style = [
             ("BACKGROUND", (0, 0), (-1, 0), accent),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
@@ -185,15 +197,29 @@ def build_pdf(rows, out_path, collection, include_oos=False):
     story.append(Paragraph("In Stock", section_style))
     if in_stock:
         in_stock_sorted = sorted(in_stock, key=lambda r: (r["size"], r["color"]))
-        story.append(make_table(in_stock_sorted, in_stock_section=True))
+        story.append(make_table(in_stock_sorted, accent_hex="#1b5e20"))
     else:
         story.append(Paragraph("Nothing currently in stock.", styles["Normal"]))
+
+    # Pre-order / drop section
+    if preorder:
+        pre_sorted = sorted(preorder, key=lambda r: (r["size"], r["color"]))
+        story.append(Paragraph("Pre-Order / Drops", section_style))
+        story.append(
+            Paragraph(
+                "These are listed as orderable on Shopify but are pre-order/drop "
+                "items, so they do not appear in the normal collection grid.",
+                sub_style,
+            )
+        )
+        story.append(Spacer(1, 0.06 * inch))
+        story.append(make_table(pre_sorted, accent_hex="#9a6a00"))
 
     # Out-of-stock section (optional)
     if include_oos and out_stock:
         out_sorted = sorted(out_stock, key=lambda r: (r["size"], r["color"]))
         story.append(Paragraph("Out of Stock", section_style))
-        story.append(make_table(out_sorted, in_stock_section=False))
+        story.append(make_table(out_sorted, accent_hex="#7f1d1d"))
 
     doc.build(story)
 
@@ -220,14 +246,18 @@ def main():
         return 1
 
     rows = build_rows(products)
-    in_stock = sum(1 for r in rows if r["available"])
+    in_stock = sum(1 for r in rows if r["status"] == "In Stock")
+    preorder = sum(1 for r in rows if r["status"] == "Pre-Order")
     print(f"Found {len(products)} products / {len(rows)} size+color combos "
-          f"({in_stock} in stock).")
+          f"({in_stock} in stock, {preorder} pre-order/drop).")
 
     # Console summary
     for r in sorted(rows, key=lambda r: (r["size"], r["color"])):
-        if r["available"]:
-            line = f"  [IN STOCK] {r['size']} - {r['color']} : {fmt_price(r['price'])}"
+        if r["status"] == "In Stock":
+            line = f"  [IN STOCK]  {r['size']} - {r['color']} : {fmt_price(r['price'])}"
+            print(ascii_safe(line))
+        elif r["status"] == "Pre-Order":
+            line = f"  [PRE-ORDER] {r['size']} - {r['color']} : {fmt_price(r['price'])}"
             print(ascii_safe(line))
 
     build_pdf(rows, args.out, args.collection, include_oos=args.include_oos)
