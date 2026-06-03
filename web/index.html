@@ -87,10 +87,7 @@
 
   <div id="groups"></div>
 
-  <footer>
-    Prices are Vault X B2B account pricing (1+ / volume) with MSRP shown for reference.
-    Static snapshot — not live. Pre-order/drop items are listed separately.
-  </footer>
+  <footer id="footer"></footer>
 </div>
 
 <script src="data.js"></script>
@@ -100,7 +97,8 @@
   let query = "";
 
   function tiers(item) {
-    if (item.b2b_min1 == null) return `<span class="msrp">${fmt(item.msrp)}</span>`;
+    // Public snapshot: no B2B pricing -> show the plain retail price.
+    if (item.b2b_min1 == null) return `<b>${fmt(item.msrp)}</b>`;
     let s = `<b>1+ ${fmt(item.b2b_min1)}</b>`;
     for (const [q, p] of item.breaks) s += ` &nbsp;·&nbsp; ${q}+ ${fmt(p)}`;
     s += ` &nbsp;·&nbsp; <span class="msrp">MSRP ${fmt(item.msrp)}</span>`;
@@ -155,6 +153,13 @@
     }
     document.getElementById("groups").innerHTML =
       html || `<div class="empty">No items match.</div>`;
+
+    const hasB2b = items.some((i) => i.b2b_min1 != null);
+    document.getElementById("footer").textContent = hasB2b
+      ? "Prices are Vault X B2B account pricing (1+ / volume) with MSRP for reference. " +
+        "Static snapshot — not live. Pre-order/drop items are listed separately."
+      : "Prices shown are retail (MSRP). Static snapshot, refreshed daily — not live. " +
+        "Pre-order/drop items are listed separately.";
   }
 
   document.querySelectorAll(".toggle").forEach((b) =>

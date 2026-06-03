@@ -1,0 +1,59 @@
+name: Update stock & deploy
+
+# Daily refresh of the public stock snapshot, committed and redeployed to Vercel.
+on:
+  schedule:
+    - cron: "0 13 * * *"   # 13:00 UTC daily (~8am US Central)
+  workflow_dispatch: {}      # allow manual runs from the Actions tab
+
+permissions:
+  contents: write            # needed to commit the regenerated data.js
+
+concurrency:
+  group: update-stock
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      # Project identifiers (not secrets) so the CLI deploys to the EXISTING project.
+      VERCEL_ORG_ID: team_yA1JvDVN7verrgLmmKcfMeP6
+      VERCEL_PROJECT_ID: prj_qn96nsCNkhVcy4NGm2wIusOw6pDb
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Regenerate web/data.js (public snapshot)
+        run: python build_web_data.py --out web/data.js
+
+      - name: Commit if changed
+        id: commit
+        run: |
+          if git diff --quiet -- web/data.js; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No stock changes."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add web/data.js
+            git commit -m "chore: daily stock snapshot $(date -u +%Y-%m-%d)"
+            git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy to Vercel
+        if: steps.commit.outputs.changed == 'true'
+        working-directory: web
+        run: |
+          npm i -g vercel@latest
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          vercel deploy --prod --yes --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
