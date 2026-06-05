@@ -344,7 +344,7 @@ const STOCK = {
       "msrp": 26.99,
       "b2b_min1": null,
       "breaks": [],
-      "status": "Pre-Order"
+      "status": "Sold Out"
     },
     {
       "size": "12-Pocket Exo-Tec® Zip Binder ME4",
@@ -362,7 +362,7 @@ const STOCK = {
       "msrp": 32.99,
       "b2b_min1": null,
       "breaks": [],
-      "status": "Pre-Order"
+      "status": "Sold Out"
     },
     {
       "size": "4-Pocket Exo-Tec® Zip Binder Just Pink",
