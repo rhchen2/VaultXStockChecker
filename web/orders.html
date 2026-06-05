@@ -28,6 +28,21 @@
   .meta b { color: var(--text); font-weight: 600; }
   .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; padding: 3px 10px; border-radius: 999px; }
   .b-ship { background: rgba(79,140,255,.14); color: var(--accent); }
+  /* Prominent status banner — the most important part of the order. */
+  .status-banner {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin: 4px 0 14px; padding: 14px 18px; border-radius: 10px;
+    border: 1px solid; font-size: 1.05rem;
+  }
+  .status-banner .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+  .status-banner .label { font-size: 1.25rem; font-weight: 800; letter-spacing: .2px; }
+  .status-banner .when { color: var(--muted); font-size: 0.85rem; }
+  .status-banner .track { margin-left: auto; font-size: 0.9rem; }
+  .status-banner .track .tnum { font-family: ui-monospace, Consolas, monospace; font-weight: 700; letter-spacing: .3px; }
+  .sb-shipped { background: rgba(46,194,126,.12); border-color: rgba(46,194,126,.45); color: var(--green); }
+  .sb-confirmed { background: rgba(224,166,78,.12); border-color: rgba(224,166,78,.45); color: var(--amber); }
+  .sb-other { background: rgba(79,140,255,.12); border-color: rgba(79,140,255,.4); color: var(--accent); }
+  .status-banner .label, .status-banner .track .tnum { color: var(--text); }
   .pii-note {
     margin: 14px 0; padding: 10px 14px; border-radius: 8px; font-size: 0.84rem;
     background: rgba(46,194,126,.08); border: 1px solid rgba(46,194,126,.3); color: var(--green);
@@ -120,6 +135,37 @@
   };
   const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+  // Canonical status. RULE: an order is only "Shipped" if it has a tracking
+  // number. A carrier/raw status of "On its way"/"Shipped" with NO tracking
+  // stays "Confirmed" and is flagged as awaiting tracking.
+  function orderStatus(o) {
+    const t = o.tracking && o.tracking.number ? o.tracking : null;
+    const raw = (o.status || "").toLowerCase();
+    const shippedRaw = /(ship|on its way|out for delivery|delivered|in transit)/.test(raw);
+    if (t) return { state: "Shipped", cls: "sb-shipped", tracking: t, when: o.shipped || "" };
+    if (shippedRaw) return { state: "Confirmed", cls: "sb-confirmed", awaitingTracking: true };
+    if (raw.includes("confirm")) return { state: "Confirmed", cls: "sb-confirmed" };
+    return { state: o.status || "Order", cls: "sb-other" };
+  }
+
+  function statusBanner(o) {
+    const st = orderStatus(o);
+    let right = "";
+    if (st.tracking) {
+      const t = st.tracking;
+      const num = t.url
+        ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" class="tnum">${esc(t.number)}</a>`
+        : `<span class="tnum">${esc(t.number)}</span>`;
+      right = `<span class="track">${t.carrier ? esc(t.carrier) + " " : ""}Tracking: ${num}</span>`;
+    } else if (st.awaitingTracking) {
+      right = `<span class="track">Carrier en route — awaiting tracking #</span>`;
+    }
+    const tl = (o.timeline || []).map((t) => `${esc(t.label)} ${esc(t.date)}`).join(" · ");
+    return `<div class="status-banner ${st.cls}"><span class="dot" ` +
+           `style="background:currentColor"></span><span class="label">${esc(st.state)}</span>` +
+           (tl ? `<span class="when">${tl}</span>` : "") + right + `</div>`;
+  }
+
   function renderOrder(o) {
     const shownQty = o.items.reduce((s, i) => s + i.qty, 0);
     const shownTotal = o.items.reduce((s, i) => s + i.total, 0);
@@ -128,12 +174,10 @@
       Math.abs(shownTotal - o.summary.subtotal) > 0.01;
 
     let h = `<div class="order">`;
-    h += `<div class="order-head"><h2>Order #${esc(o.number)}</h2>` +
-         `<span class="badge b-ship">${esc(o.status)}</span></div>`;
+    h += `<div class="order-head"><h2>Order #${esc(o.number)}</h2></div>`;
+    h += statusBanner(o);
 
-    const tl = (o.timeline || []).map((t) => `${esc(t.label)} ${esc(t.date)}`).join(" · ");
     h += `<div class="meta">`;
-    if (tl) h += `<span>${tl}</span>`;
     if (o.paid) h += `<span>Paid <b>${esc(o.paid)}</b></span>`;
     if (o.shippingMethod) h += `<span>Shipping <b>${esc(o.shippingMethod)}</b></span>`;
     h += `</div>`;
@@ -188,6 +232,16 @@
     const confirmed = (text.match(/Confirmed\s*\n?\s*([A-Z][a-z]{2}\s*\d{1,2})/i) || [])[1] || "";
     const paid = (text.match(/Paid\s*([A-Z][a-z]{2}\s*\d{1,2})/i) || [])[1] || "";
     const shippingMethod = (text.match(/Shipping method\s*\n?\s*([^\n$]+?)\s*(?:\n|$)/i) || [])[1] || "";
+
+    // Tracking number (required for "Shipped"). Prefer an explicit label; then a
+    // UPS 1Z pattern; then a long numeric only when carrier/tracking context exists.
+    const carrier = (text.match(/\b(UPS|USPS|FedEx|DHL|OnTrac|Canada Post|Royal Mail)\b/i) || [])[1] || null;
+    let trackingNum = (text.match(/tracking(?:\s*(?:number|no\.?|#))?\s*[:#-]?\s*\n?\s*([A-Z0-9][A-Z0-9-]{7,40})/i) || [])[1] || null;
+    if (!trackingNum) trackingNum = (text.match(/\b(1Z[0-9A-Z]{16})\b/) || [])[1] || null;
+    if (!trackingNum && /(tracking|ups|usps|fedex|dhl)/i.test(text))
+      trackingNum = (text.match(/\b(\d{12,22})\b/) || [])[1] || null;
+    const trackUrl = (text.match(/\bhttps?:\/\/\S*(track|tracking)\S*/i) || [])[0] || null;
+    const tracking = trackingNum ? { number: trackingNum, carrier, url: trackUrl } : null;
 
     const items = [];
     for (let i = 0; i < lines.length; i++) {
@@ -247,14 +301,17 @@
     if (confirmed) timeline.push({ label: "Confirmed", date: confirmed });
 
     return {
-      number, status, timeline, paid, shippingMethod: shippingMethod.trim(),
+      number, status, tracking, timeline, paid, shippingMethod: shippingMethod.trim(),
       items, itemsComplete,
       summary: { itemCount, subtotal: subtotal || 0, shipping, taxes, total: total || 0 },
     };
   }
 
   function cleanSummaryText(o) {
-    const lines = [`Order #${o.number || "(n/a)"} — ${o.status}`];
+    const st = orderStatus(o);
+    const head = `Order #${o.number || "(n/a)"} — ${st.state}` +
+      (st.tracking ? ` (Tracking ${st.tracking.carrier ? st.tracking.carrier + " " : ""}${st.tracking.number})` : "");
+    const lines = [head];
     for (const i of o.items) lines.push(`${i.qty} x ${i.product} (${i.color}) @ ${fmt(i.ea)} = ${fmt(i.total)}`);
     const s = o.summary;
     lines.push(`Subtotal (${s.itemCount} items): ${fmt(s.subtotal)}`);

@@ -12,6 +12,11 @@ const ORDERS = [
   {
     number: "WUS3355",
     status: "On its way",
+    // RULE: "Shipped" requires a tracking number. None captured for this order
+    // yet, so the page shows it as Confirmed / awaiting tracking. Fill this in
+    // (e.g. { number: "1Z...", carrier: "UPS", url: "https://..." }) to flip it
+    // to Shipped.
+    tracking: null,
     timeline: [
       { label: "On its way", date: "Jun 3" },
       { label: "Confirmed", date: "Jun 1" },
