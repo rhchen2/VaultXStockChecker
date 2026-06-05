@@ -48,6 +48,21 @@
   .color-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: middle; border: 1px solid rgba(255,255,255,.15); }
   footer { margin-top: 36px; color: var(--muted); font-size: 0.8rem; text-align: center; }
   a { color: var(--accent); }
+  .tool { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-top: 18px; }
+  .tool h2 { margin: 0 0 4px; font-size: 1.05rem; }
+  .tool .hint { color: var(--muted); font-size: 0.84rem; margin: 0 0 10px; }
+  textarea {
+    width: 100%; min-height: 120px; resize: vertical; background: var(--bg);
+    color: var(--text); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; font-size: 0.85rem; font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  }
+  .row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  button {
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 8px 16px; font-size: 0.88rem; cursor: pointer;
+  }
+  button.ghost { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+  .section-h { font-size: 0.95rem; color: var(--muted); margin: 26px 0 0; text-transform: uppercase; letter-spacing: .04em; }
 </style>
 </head>
 <body>
@@ -61,6 +76,25 @@
     <div class="sub">Order contents &amp; totals — personal information omitted.</div>
   </header>
 
+  <section class="tool">
+    <h2>Paste an order → get a PII-free view</h2>
+    <p class="hint">
+      Copy the VaultX order page (Ctrl+A, Ctrl+C) and paste it below. It's parsed
+      entirely <b>in your browser</b> — only products, quantities, prices and totals
+      are read; names, emails, company, addresses and payment are never used.
+    </p>
+    <textarea id="paste" placeholder="Paste the order page text here…"></textarea>
+    <div class="row">
+      <button id="parseBtn">Show PII-free order</button>
+      <button id="copyBtn" class="ghost">Copy clean summary</button>
+      <button id="clearBtn" class="ghost">Clear</button>
+    </div>
+    <div id="parseErr" class="warn" style="display:none"></div>
+  </section>
+
+  <div id="parsed"></div>
+
+  <h2 class="section-h">Saved orders</h2>
   <div id="orders"></div>
 
   <footer>
@@ -141,6 +175,127 @@
     (typeof ORDERS !== "undefined" && ORDERS.length)
       ? ORDERS.map(renderOrder).join("")
       : `<div class="order">No orders.</div>`;
+
+  // --- Paste-an-order parser (PII-free): reads only products/qty/prices/totals.
+  function parseOrder(text) {
+    const lines = text.split(/\r?\n/).map((s) => s.trim()).filter((s) => s.length);
+    const money = (s) => parseFloat(String(s).replace(/[^0-9.]/g, ""));
+    const productRe = /(pocket|binder|deck box|exo-?tec|sleeve|holder)/i;
+
+    const number = (text.match(/Order\s*#\s*([A-Za-z0-9-]+)/i) || [])[1] || "";
+    const STATUSES = ["Delivered", "Out for delivery", "On its way", "Shipped", "Processing", "Confirmed", "Cancelled"];
+    const status = STATUSES.find((s) => new RegExp("\\b" + s.replace(/ /g, "\\s+") + "\\b", "i").test(text)) || "Order";
+    const confirmed = (text.match(/Confirmed\s*\n?\s*([A-Z][a-z]{2}\s*\d{1,2})/i) || [])[1] || "";
+    const paid = (text.match(/Paid\s*([A-Z][a-z]{2}\s*\d{1,2})/i) || [])[1] || "";
+    const shippingMethod = (text.match(/Shipping method\s*\n?\s*([^\n$]+?)\s*(?:\n|$)/i) || [])[1] || "";
+
+    const items = [];
+    for (let i = 0; i < lines.length; i++) {
+      const eaM = lines[i].match(/\$?\s*([\d,]+\.\d{2})\s*\/\s*ea/i);
+      if (!eaM) continue;
+      const ea = money(eaM[1]);
+      let total = null;
+      for (let j = i + 1; j <= Math.min(i + 2, lines.length - 1); j++) {
+        const tM = lines[j].match(/^\$?\s*([\d,]+\.\d{2})\s*(USD)?$/i);
+        if (tM) { total = money(tM[1]); break; }
+      }
+      const color = lines[i - 1] || "";
+      let product = lines[i - 2] || "";
+      if (!productRe.test(product)) {
+        for (let k = i - 2; k >= Math.max(0, i - 5); k--) {
+          if (productRe.test(lines[k])) { product = lines[k]; break; }
+        }
+      }
+      let qty = ea && total ? Math.round(total / ea) : 0;
+      if (!qty) {
+        for (let k = i - 3; k >= Math.max(0, i - 6); k--) {
+          if (/^\d{1,4}$/.test(lines[k])) { qty = parseInt(lines[k], 10); break; }
+        }
+      }
+      if (ea && total && productRe.test(product)) items.push({ product, color, qty, ea, total });
+    }
+
+    function amountAfter(labelRe) {
+      for (let i = 0; i < lines.length; i++) {
+        if (!labelRe.test(lines[i])) continue;
+        const same = lines[i].match(/\$\s*([\d,]+\.\d{2})/);
+        if (same) return money(same[1]);
+        for (let j = i + 1; j <= Math.min(i + 2, lines.length - 1); j++) {
+          if (/free/i.test(lines[j])) return 0;
+          const n = lines[j].match(/\$\s*([\d,]+\.\d{2})/);
+          if (n) return money(n[1]);
+        }
+      }
+      return null;
+    }
+    const itemCount = parseInt(((text.match(/Subtotal[^\d]*([\d,]+)\s*items/i) || [])[1] || "0").replace(/,/g, ""), 10)
+      || items.reduce((s, i) => s + i.qty, 0);
+    const subtotal = amountAfter(/^Subtotal/i);
+    const shipping = amountAfter(/^Shipping$/i) || 0;
+    const taxes = amountAfter(/^Tax(es)?$/i) || 0;
+    let total = amountAfter(/^Total/i);
+    if (total == null && subtotal != null) total = subtotal + shipping + taxes;
+
+    const itemsComplete =
+      subtotal != null &&
+      Math.abs(items.reduce((s, i) => s + i.total, 0) - subtotal) < 0.01 &&
+      Math.abs(items.reduce((s, i) => s + i.qty, 0) - itemCount) < 0.5;
+
+    const timeline = [];
+    const statusDate = text.match(new RegExp(status.replace(/ /g, "\\s+") + "\\s*\\n?\\s*([A-Z][a-z]{2}\\s*\\d{1,2})", "i"));
+    if (status !== "Confirmed" && status !== "Order" && statusDate) timeline.push({ label: status, date: statusDate[1] });
+    if (confirmed) timeline.push({ label: "Confirmed", date: confirmed });
+
+    return {
+      number, status, timeline, paid, shippingMethod: shippingMethod.trim(),
+      items, itemsComplete,
+      summary: { itemCount, subtotal: subtotal || 0, shipping, taxes, total: total || 0 },
+    };
+  }
+
+  function cleanSummaryText(o) {
+    const lines = [`Order #${o.number || "(n/a)"} — ${o.status}`];
+    for (const i of o.items) lines.push(`${i.qty} x ${i.product} (${i.color}) @ ${fmt(i.ea)} = ${fmt(i.total)}`);
+    const s = o.summary;
+    lines.push(`Subtotal (${s.itemCount} items): ${fmt(s.subtotal)}`);
+    lines.push(`Shipping: ${s.shipping ? fmt(s.shipping) : "Free"}`);
+    lines.push(`Taxes: ${fmt(s.taxes)}`);
+    lines.push(`Total: ${fmt(s.total)}`);
+    return lines.join("\n");
+  }
+
+  let lastParsed = null;
+  const errEl = document.getElementById("parseErr");
+  const parsedEl = document.getElementById("parsed");
+
+  function doParse() {
+    const text = document.getElementById("paste").value;
+    errEl.style.display = "none";
+    if (!text.trim()) { parsedEl.innerHTML = ""; lastParsed = null; return; }
+    const o = parseOrder(text);
+    if (!o.items.length) {
+      lastParsed = null; parsedEl.innerHTML = "";
+      errEl.textContent = "Couldn't find any line items. Make sure you pasted the full order page (each item shows a “$X/ea” price).";
+      errEl.style.display = "block";
+      return;
+    }
+    lastParsed = o;
+    parsedEl.innerHTML = renderOrder(o);
+  }
+
+  document.getElementById("parseBtn").addEventListener("click", doParse);
+  document.getElementById("clearBtn").addEventListener("click", () => {
+    document.getElementById("paste").value = "";
+    parsedEl.innerHTML = ""; errEl.style.display = "none"; lastParsed = null;
+  });
+  document.getElementById("copyBtn").addEventListener("click", async () => {
+    const o = lastParsed || (typeof ORDERS !== "undefined" && ORDERS[0]);
+    if (!o) return;
+    try { await navigator.clipboard.writeText(cleanSummaryText(o)); } catch (e) {}
+    const b = document.getElementById("copyBtn");
+    const t = b.textContent; b.textContent = "Copied ✓";
+    setTimeout(() => (b.textContent = t), 1400);
+  });
 </script>
 </body>
 </html>
