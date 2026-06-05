@@ -26,6 +26,9 @@
     line-height: 1.45;
   }
   .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 18px 60px; }
+  .nav { display: flex; gap: 16px; margin-bottom: 18px; font-size: 0.9rem; }
+  .nav a { color: var(--muted); text-decoration: none; padding-bottom: 2px; }
+  .nav a.active { color: var(--text); border-bottom: 2px solid var(--accent); }
   header h1 { font-size: 1.7rem; margin: 0 0 4px; }
   .sub { color: var(--muted); font-size: 0.9rem; }
   .stats { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0 10px; }
@@ -72,6 +75,10 @@
 </head>
 <body>
 <div class="wrap">
+  <nav class="nav">
+    <a href="index.html" class="active">Stock</a>
+    <a href="orders.html">Orders</a>
+  </nav>
   <header>
     <h1>Vault X — Zip Binder Stock</h1>
     <div class="sub" id="sub"></div>

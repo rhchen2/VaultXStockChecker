@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vault X — Orders (PII omitted)</title>
+<style>
+  :root {
+    --bg: #0e1116; --panel: #171b22; --panel-2: #1e232c; --border: #2a313c;
+    --text: #e8edf2; --muted: #98a2b3; --green: #2ec27e; --amber: #e0a64e;
+    --red: #e0566a; --accent: #4f8cff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.45;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 24px 18px 60px; }
+  .nav { display: flex; gap: 16px; margin-bottom: 18px; font-size: 0.9rem; }
+  .nav a { color: var(--muted); text-decoration: none; padding-bottom: 2px; }
+  .nav a.active { color: var(--text); border-bottom: 2px solid var(--accent); }
+  header h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 0.9rem; }
+  .order { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; margin-top: 20px; }
+  .order-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+  .order-head h2 { margin: 0; font-size: 1.2rem; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 12px 0 4px; color: var(--muted); font-size: 0.86rem; }
+  .meta b { color: var(--text); font-weight: 600; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; padding: 3px 10px; border-radius: 999px; }
+  .b-ship { background: rgba(79,140,255,.14); color: var(--accent); }
+  .pii-note {
+    margin: 14px 0; padding: 10px 14px; border-radius: 8px; font-size: 0.84rem;
+    background: rgba(46,194,126,.08); border: 1px solid rgba(46,194,126,.3); color: var(--green);
+  }
+  .pii-note b { color: var(--text); }
+  .warn {
+    margin: 12px 0; padding: 10px 14px; border-radius: 8px; font-size: 0.84rem;
+    background: rgba(224,166,78,.09); border: 1px solid rgba(224,166,78,.35); color: var(--amber);
+  }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th, td { text-align: left; padding: 9px 10px; font-size: 0.9rem; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 0.76rem; text-transform: uppercase; letter-spacing: .03em; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tfoot td { border-bottom: none; padding-top: 6px; padding-bottom: 6px; }
+  .summary { margin-top: 14px; margin-left: auto; width: 320px; max-width: 100%; }
+  .summary td { border-bottom: none; padding: 4px 10px; }
+  .summary .total td { border-top: 1px solid var(--border); padding-top: 9px; font-size: 1.05rem; font-weight: 700; }
+  .color-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: middle; border: 1px solid rgba(255,255,255,.15); }
+  footer { margin-top: 36px; color: var(--muted); font-size: 0.8rem; text-align: center; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="nav">
+    <a href="index.html">Stock</a>
+    <a href="orders.html" class="active">Orders</a>
+  </nav>
+  <header>
+    <h1>Orders</h1>
+    <div class="sub">Order contents &amp; totals — personal information omitted.</div>
+  </header>
+
+  <div id="orders"></div>
+
+  <footer>
+    This view intentionally excludes all PII (names, emails, company, addresses,
+    payment). Safe to share. Static snapshot — not live.
+  </footer>
+</div>
+
+<script src="orders.js"></script>
+<script>
+  const fmt = (n) => "$" + Number(n).toFixed(2);
+
+  // Minimal color swatches for known VaultX colors.
+  const SWATCH = {
+    "signature black": "#1c1c1e", "royal blue": "#1f4fd8", "forest green": "#1f7a44",
+    "fire red": "#cc2b3d", "ocean blue": "#1aa3a3", "sunrise yellow": "#f2c200",
+    "metallic red": "#9e2a3a", "metallic green": "#2f6f4f",
+    "just pink": "#e0569b", "just purple": "#7a4fd8",
+  };
+  const swatch = (c) => {
+    const hex = SWATCH[(c || "").toLowerCase()];
+    return hex ? `<span class="color-dot" style="background:${hex}"></span>` : "";
+  };
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  function renderOrder(o) {
+    const shownQty = o.items.reduce((s, i) => s + i.qty, 0);
+    const shownTotal = o.items.reduce((s, i) => s + i.total, 0);
+    const partial = !o.itemsComplete ||
+      Math.abs(shownQty - o.summary.itemCount) > 0.001 ||
+      Math.abs(shownTotal - o.summary.subtotal) > 0.01;
+
+    let h = `<div class="order">`;
+    h += `<div class="order-head"><h2>Order #${esc(o.number)}</h2>` +
+         `<span class="badge b-ship">${esc(o.status)}</span></div>`;
+
+    const tl = (o.timeline || []).map((t) => `${esc(t.label)} ${esc(t.date)}`).join(" · ");
+    h += `<div class="meta">`;
+    if (tl) h += `<span>${tl}</span>`;
+    if (o.paid) h += `<span>Paid <b>${esc(o.paid)}</b></span>`;
+    if (o.shippingMethod) h += `<span>Shipping <b>${esc(o.shippingMethod)}</b></span>`;
+    h += `</div>`;
+
+    h += `<div class="pii-note"><b>Personal info omitted.</b> Customer name, email, ` +
+         `company, shipping &amp; billing address and payment method are not shown.</div>`;
+
+    if (partial) {
+      h += `<div class="warn">Showing <b>${shownQty}</b> of <b>${o.summary.itemCount}</b> ` +
+           `items (${fmt(shownTotal)} of ${fmt(o.summary.subtotal)} subtotal). ` +
+           `Some line items aren't captured yet — totals below are the order's actual totals.</div>`;
+    }
+
+    h += `<table><thead><tr><th>Product</th><th>Color</th>` +
+         `<th class="num">Qty</th><th class="num">Price/ea</th><th class="num">Line total</th>` +
+         `</tr></thead><tbody>`;
+    for (const i of o.items) {
+      h += `<tr><td>${esc(i.product)}</td>` +
+           `<td>${swatch(i.color)}${esc(i.color)}</td>` +
+           `<td class="num">${i.qty}</td>` +
+           `<td class="num">${fmt(i.ea)}</td>` +
+           `<td class="num">${fmt(i.total)}</td></tr>`;
+    }
+    h += `</tbody></table>`;
+
+    const s = o.summary;
+    h += `<table class="summary"><tbody>` +
+         `<tr><td>Subtotal · ${s.itemCount} items</td><td class="num">${fmt(s.subtotal)}</td></tr>` +
+         `<tr><td>Shipping</td><td class="num">${s.shipping ? fmt(s.shipping) : "Free"}</td></tr>` +
+         `<tr><td>Taxes</td><td class="num">${fmt(s.taxes)}</td></tr>` +
+         `<tr class="total"><td>Total</td><td class="num">${fmt(s.total)}</td></tr>` +
+         `</tbody></table>`;
+
+    h += `</div>`;
+    return h;
+  }
+
+  document.getElementById("orders").innerHTML =
+    (typeof ORDERS !== "undefined" && ORDERS.length)
+      ? ORDERS.map(renderOrder).join("")
+      : `<div class="order">No orders.</div>`;
+</script>
+</body>
+</html>
