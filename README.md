@@ -109,6 +109,38 @@ py make_b2b_site.py --no-deploy # rebuild web/data.js only
 > *Vercel → Project → Settings → Deployment Protection*. The generated
 > `web-five-lyart-32.vercel.app` domain is public regardless.
 
+## Orders page (PII-free)
+
+[`web/orders.html`](web/orders.html) shows order contents and totals with **all
+PII omitted** (no name, email, company, address or payment). The order **status
+is highlighted** as the headline, with this rule: an order is **"Shipped" only
+if it has a tracking number** — otherwise it stays **Confirmed** (a carrier
+status with no tracking shows "awaiting tracking #").
+
+Two ways to add/update an order:
+
+- **Paste on the page:** the Orders page has a paste box — paste the VaultX order
+  page and it renders a PII-free view in your browser (nothing uploaded). Good
+  for a quick look; not saved.
+- **Save + deploy with `update_orders.py`:** the order portal is behind your
+  login, so this runs **locally on demand** (not in the cron). Capture the order
+  as text or a HAR, then:
+
+  ```sh
+  py update_orders.py --text order.txt     # paste the order page into a .txt
+  py update_orders.py --har order.har       # or a HAR of the order page
+  py update_orders.py --text order.txt --no-deploy
+  ```
+
+  It parses only non-PII fields (products, qty, prices, totals, status,
+  tracking #), upserts the order into `web/orders.js` by order number, and
+  deploys. Re-run when a status changes.
+
+> Why not in the cron? The order portal requires login and B2B sessions expire,
+> so it can't run unattended like the public stock job. If your portal serves
+> orders via a JSON API (rather than HTML), send a HAR and the parser can be
+> adapted to it.
+
 ## Daily auto-update (GitHub Actions)
 
 [`.github/workflows/update-stock.yml`](.github/workflows/update-stock.yml) runs
