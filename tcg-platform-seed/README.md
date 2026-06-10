@@ -1,4 +1,4 @@
-# tcg-platform
+# SortSwift
 
 TCG shop inventory & pricing platform (SortSwift-inspired): software-first,
 0% commission wedge, launching with **One Piece + Pokémon**.

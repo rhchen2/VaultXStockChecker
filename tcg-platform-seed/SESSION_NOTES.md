@@ -54,6 +54,6 @@ so the repo itself was created manually by the owner.
   and quirks (foils, alt-arts, JP cards) — do this before writing importer
   code. Also: JustTCG/TCGAPIs bake-off signups, PokemonTCG.io + OPTCG API
   keys, Stripe/EasyPost test accounts, recruit 1–2 pilot shops.
-- Scaffold a separate `tcg-platform` repo (this repo remains the VaultX
+- Scaffold a separate `SortSwift` repo (this repo remains the VaultX
   scraper + planning docs).
 - Branch not yet merged to `main`; no PR opened (owner hasn't asked).
