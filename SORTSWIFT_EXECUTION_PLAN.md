@@ -16,21 +16,24 @@ These were the open calls in Part G of the feature map. Resolved with research a
 ### D1. Price/catalog data: use aggregators + free per-game sources (not TCGPlayer direct)
 **Finding:** TCGPlayer (eBay-owned) **closed its API to new developers in late 2024** — no application form, no waitlist, and existing keys are being deprecated. Direct access is not a viable plan; scraping their internal endpoints is a ToS/legal risk and explicitly avoided.
 **Decision:**
-- **Catalog ground truth (free, legal, excellent):** Scryfall + MTGJSON for MTG; PokemonTCG.io for Pokémon; YGOPRODeck for Yu-Gi-Oh.
-- **Market prices:** a third-party aggregator API — shortlist **JustTCG** (condition/printing-specific prices, multiple refreshes/day), **TCGAPIs** (40+ games), **TCG API** (per-printing + sealed). Run a 2-week paid bake-off in Sprint 1; pick one primary + one fallback.
+- **Catalog ground truth (free/community):** PokemonTCG.io for Pokémon; **OPTCG API** (optcgapi.com — all sets OP-01→OP-15 + starter decks) for One Piece, with arjunkai/optcg-api as secondary. (Scryfall/MTGJSON for MTG when MTG is added later.)
+- **Market prices:** a third-party aggregator API — shortlist **JustTCG** (condition/printing-specific prices, covers One Piece + Pokémon, multiple refreshes/day), **TCGAPIs** (40+ games), **TCG API** (per-printing + sealed). Run a 2-week paid bake-off in Sprint 1 **with One Piece coverage as a hard requirement**; pick one primary + one fallback.
 - **Direct integrations where APIs exist:** CardTrader and Cardmarket have real developer APIs — integrate later for both pricing *and* selling.
 - Budget: **$100–$1,000/mo** early (aggregator tiers), revisit at scale.
 
-### D2. Recognition: buy first, build later ("buy-then-build")
-**Finding:** **Ximilar** sells a TCG-identification API claiming ~99% accuracy on MTG/Pokémon/Yu-Gi-Oh, with language-variant (EN/JP/CN) and edition handling, plus slab-label OCR. This is essentially SortSwift's moat available for rent.
-**Decision:** launch on Ximilar (Business plan, per-call pricing) to hit M1 months sooner; instrument every scan (image + confirmed match) to accumulate our **own labeled training corpus**; revisit in-house model when scan volume makes per-call cost > ~1 FTE, or accuracy gaps appear on games Ximilar covers poorly. This converts a 🔴 30–60-week build into a 🟡 3–4-week integration **without losing the long-term option to in-source**.
+### D2. Recognition: piggyback on TCGPlayer's app scanner (scan → CSV export → import), own scanner later
+**Owner decision (validated):** rather than building or licensing recognition for MVP, **use the TCGPlayer mobile app's free Scan & Identify as the recognizer**. Confirmed feasible: Scan & Identify supports **Pokémon and One Piece** (also MTG/YGO/Lorcana), and the app exports scanned lists as **CSV** — this is the officially documented workflow TCGPlayer itself promotes for importing into BinderPOS, so it is an accepted integration pattern, not a ToS-risky hack.
+**Pipeline:** shop staff scan piles in the TCGPlayer app → export CSV → import via our column mapper, which auto-detects the TCGPlayer CSV format and maps to catalog variants (incl. condition/printing).
+**Trade-offs accepted:** manual two-app workflow (no in-app camera at MVP); dependent on TCGPlayer keeping scan/export free and stable; no custom capture UX. **Mitigation/upgrade path:** the CSV importer is format-agnostic (ManaBox, Moxfield, BinderPOS exports also work), and an embedded scanner (Ximilar API ≈99% accuracy, or in-house) remains the Phase 3+ upgrade — slotting into the same `ScanJob` interface. This removes recognition entirely from the MVP critical path and cuts Phase 1 scope by ~6–8 eng-weeks.
 
-### D3. Mobile stack: **React Native (Expo)**
-Camera quality is sufficient (capture + upload; recognition is server-side). One codebase for shop app + consumer app. Native escape hatch via Expo modules if frame-rate capture becomes a bottleneck.
+### D3. Mobile stack: **React Native (Expo)** — deferred to Phase 3
+With D2, no first-party scan app is needed at MVP; the shop dashboard is web. Expo RN remains the choice when the embedded scanner / consumer app arrives.
 
-### D4. Launch games: **MTG + Pokémon** first (largest markets, best free data), Yu-Gi-Oh third.
+### D4. Launch games: **One Piece + Pokémon** (owner decision)
+Pokémon = largest market, best free catalog data. One Piece = fast-growing and underserved by incumbents (a differentiation wedge). Both are covered by TCGPlayer Scan & Identify (D2) and JustTCG pricing. MTG and Yu-Gi-Oh follow in Phase 3.
 
-### D5. Hardware: **skip for now.** Software + 0% commission is the wedge. Revisit Simple Sifter (low-cost appliance) after M3; Super Sorter not on roadmap.
+### D5. Hardware: **shelved, with a DIY feasibility note kept warm (owner decision)**
+Owner is interested in the feasibility of self-building a sorter but is shelving it for now. See **Appendix A** for a DIY Super-Sorter feasibility sketch so the option stays evaluated, not forgotten. Nothing hardware-related enters the software roadmap before M3.
 
 ### D6. Commission model: **0%, subscription-only** — matching SortSwift neutralizes their headline differentiator; we compete on price tiers and recognition UX.
 
@@ -76,8 +79,8 @@ tcg-platform/                  (new monorepo)
 ### Sprint 2 (wk 3–4) — catalog import
 | # | Ticket | Acceptance criteria |
 |---|---|---|
-| 0.5 | Scryfall/MTGJSON importer | Full MTG catalog (~90K cards, all printings/finishes) imported + idempotent re-run |
-| 0.6 | PokemonTCG.io importer | Full Pokémon EN catalog imported; variant model covers reverse-holo/1st-ed |
+| 0.5 | PokemonTCG.io importer | Full Pokémon EN catalog imported; variant model covers reverse-holo/1st-ed; idempotent re-run |
+| 0.6 | One Piece importer (OPTCG API) | All OP sets + starter decks imported incl. alt-arts/manga rares/DON; secondary source cross-check |
 | 0.7 | Card search API + UI | Autocomplete over both games <100 ms p95 (Postgres trigram or OpenSearch) |
 
 ### Sprint 3 (wk 5–6) — market data pipeline
@@ -115,13 +118,13 @@ tcg-platform/                  (new monorepo)
 | 1.8 | Batch reprice job (5.10) | Nightly reprice of full store inventory; resumable; per-store rate caps |
 | 1.9 | Dry-run simulator (5.9) | Run rule changes against live inventory with zero writes; diff view (old→new price per item) using the trace from 1.4 |
 
-### Sprints 9–10 (wk 17–20) — recognition + scan app → **Milestone M1**
+### Sprints 9–10 (wk 17–20) — TCGPlayer-scan intake pipeline → **Milestone M1**
 | # | Ticket | Acceptance criteria |
 |---|---|---|
-| 1.10 | Recognition service (3.1 via D2) | `ScanJob` API: image in → Ximilar → mapped to our catalog variant + confidence; every scan + confirmation stored to S3 (training corpus) |
-| 1.11 | Expo scan app (3.4) | Auto-capture viewfinder, flash, zoom; candidate overlay; 1-tap confirm → inventory; offline queue |
-| 1.12 | Scan metering (3.10) | Per-store monthly scan counter; free-tier cutoff at 500 with upgrade prompt |
-| 1.13 | **M1 demo** | 100-card mixed MTG/Pokémon pile scanned: ≥95% top-1 correct, each confirmed card auto-priced into inventory with timeline entry |
+| 1.10 | TCGPlayer CSV auto-detect import (D2) | TCGPlayer-app export CSV recognized automatically; rows mapped to catalog variants incl. condition/printing; ≥98% auto-match on a 200-card real export, rest queued for one-click review |
+| 1.11 | Other-format importers | ManaBox / Moxfield / BinderPOS export formats auto-detected via same mapper; format fixtures in CI |
+| 1.12 | Intake review queue | Unmatched/ambiguous rows resolved in a keyboard-first review UI; resolved mappings remembered per store |
+| 1.13 | **M1 demo** | 100-card mixed One Piece/Pokémon pile scanned in TCGPlayer app → CSV → imported: ≥95% land as correct variants, each auto-priced into inventory with timeline entry |
 
 ---
 
@@ -160,7 +163,7 @@ tcg-platform/                  (new monorepo)
 
 ## 6. Phase 3+ (summary — detailed ticketing deferred until M2 learnings)
 
-- **Sprints 19–28 (→ M3, V1 GA):** buylist portal + price math (7.1–7.4) · CardTrader + ManaPool + Square adapters (8.3–8.5) · TCGPlayer semi-sync Chrome extension (8.7 — see risk note) · reporting templates + builder (10.3–10.4) · staging/bins/transfers (4.2, 4.4–4.5) · pricing config hierarchy (5.7) · 10+ games (Yu-Gi-Oh, Lorcana, One Piece next).
+- **Sprints 19–28 (→ M3, V1 GA):** buylist portal + price math (7.1–7.4) · CardTrader + ManaPool + Square adapters (8.3–8.5) · TCGPlayer semi-sync Chrome extension (8.7 — see risk note) · **embedded first-party scanner** (Expo app + Ximilar or in-house, replacing the D2 two-app workflow) · reporting templates + builder (10.3–10.4) · staging/bins/transfers (4.2, 4.4–4.5) · pricing config hierarchy (5.7) · more games (MTG, Yu-Gi-Oh, Lorcana next).
 - **Sprint 29+ (M4):** kiosk, consumer app (collections/trading), events, loyalty, consignment, AI assistant — sequenced by pilot-shop demand, not speculation.
 
 ---
@@ -172,11 +175,11 @@ tcg-platform/                  (new monorepo)
 | Full-stack TS (lead) | ✅ | ✅ | ✅ |
 | Full-stack TS | ✅ | ✅ | ✅ |
 | Backend/data eng | ✅ | ✅ | ✅ |
-| Mobile (RN) | — | ✅ | ✅ |
+| Mobile (RN) | — | — | — (joins Phase 3 for embedded scanner) |
 | Integrations eng | — | — | ✅ (+1 by S15) |
 | Design (contract) | ¼ | ¼ | ½ |
 
-**Cost through M2:** ~36 weeks · 3→6 eng ≈ **$420K–$560K** loaded (US senior; 40–60% less blended/offshore) + **$500–$2K/mo** services (aggregator API, Ximilar per-scan, infra, Stripe/EasyPost pass-through). Within the $0.35–0.6M MVP envelope from the original analysis.
+**Cost through M2:** ~36 weeks · 3→5 eng ≈ **$380K–$520K** loaded (US senior; 40–60% less blended/offshore) + **$300–$1.5K/mo** services (aggregator API, infra, Stripe/EasyPost pass-through — no per-scan ML cost at MVP thanks to D2). Below the original $0.35–0.6M MVP envelope; the saving comes from removing recognition and the mobile app from the critical path.
 
 ---
 
@@ -185,7 +188,8 @@ tcg-platform/                  (new monorepo)
 | Risk | Mitigation |
 |---|---|
 | Aggregator price API shut down / repriced (same fate as TCGPlayer's) | Two adapters behind one interface from day 1 (bake-off keeps the loser as fallback); snapshots are *ours* — historical data survives any cutoff |
-| Ximilar dependency (cost or accuracy ceiling) | Every scan stored with confirmed label → in-house model is a funded option, not a rescue project; decision gate at 250K scans/mo |
+| TCGPlayer app changes/removes scan CSV export (D2 dependency) | Importer is format-agnostic (ManaBox/Moxfield/BinderPOS exports also accepted); embedded scanner (Ximilar/in-house) is the planned Phase 3 replacement, can be pulled forward if export breaks |
+| One Piece catalog sources are community-run (OPTCG API) | Import to *our* schema with a secondary source cross-check (ticket 0.6); we own the data once imported |
 | TCGPlayer semi-sync fragility (Phase 3) | Treat the Chrome extension as a *labeled-beta* module with its own on-call rotation; never in the M2 critical path |
 | Oversell bugs destroy shop trust | Ledger concurrency tests in CI (ticket 2.4); pilot with one forgiving shop before GA |
 | Scope creep toward SortSwift's alpha modules | Phase gates: nothing from §6 starts before M2 pilot signs off |
@@ -195,6 +199,19 @@ tcg-platform/                  (new monorepo)
 ## 9. Immediate Next Actions (week 1)
 
 1. Create the new `tcg-platform` repo from the §2 scaffold.
-2. Sign up: JustTCG + TCGAPIs (bake-off keys), Ximilar Business trial, Scryfall/MTGJSON/PokemonTCG.io (free), Stripe + EasyPost test accounts.
-3. Recruit 1–2 pilot shops now (they gate M2; lead time is long).
-4. Start Sprint 1 tickets 0.1–0.4.
+2. Sign up: JustTCG + TCGAPIs (bake-off keys — verify One Piece coverage first), PokemonTCG.io key, OPTCG API access, Stripe + EasyPost test accounts.
+3. **Validate D2 end-to-end by hand:** scan 50 mixed One Piece + Pokémon cards in the TCGPlayer app, export the CSV, and document its exact columns/quirks (foils, alt-arts, Japanese cards) — this de-risks tickets 1.10–1.13 before any code.
+4. Recruit 1–2 pilot shops now (they gate M2; lead time is long).
+5. Start Sprint 1 tickets 0.1–0.4.
+
+---
+
+## Appendix A — DIY Super-Sorter Feasibility Sketch (shelved, on request)
+
+A self-built card sorter is feasible as a hobby-grade project but is a serious robotics program at production grade. What it takes:
+
+- **Mechanics:** card feeder (the hard part — singulating sleeved/unsleeved cards without damage; vacuum or friction-wheel feed), transport path, and a bin array. SortSwift uses 29 bins; a DIY v1 is realistic at 8–12 bins with a rotating chute or diverter gates.
+- **Sensing/compute:** a global-shutter camera + ring light over the transport, Raspberry Pi 5 / Jetson Orin Nano running the recognizer (could call the same cloud `ScanJob` API as the software platform — reuse, not new ML).
+- **Actuation:** stepper/servo drivers (grbl/Klipper-class controller), 3D-printed + laser-cut frame.
+- **Realistic budget:** **$1.5K–$4K BOM** and **3–6 months of evenings** for a 1-card/2-sec, ~95%-feed-reliability prototype; the gap from there to a sellable product (jam recovery, foil/toploader handling, duty cycle, safety, support) is what makes SortSwift's unit a $0.5–2M program.
+- **Verdict:** worth a weekend-scale spike *after* M2 only as R&D; never on the software critical path. Open-source prior art to study first: existing community card-sorter builds (search "MTG card sorter Raspberry Pi") and the Fujitsu-scanner Simple-Sifter pattern, which delivers 80% of the intake speedup at 5% of the effort.
