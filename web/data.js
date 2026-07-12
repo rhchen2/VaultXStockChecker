@@ -9,8 +9,13 @@ const STOCK = {
       "color": "Signature Black",
       "sku": "VX-EX01-09BK",
       "msrp": 31.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 18.55,
+      "breaks": [
+        [
+          12,
+          16.69
+        ]
+      ],
       "status": "In Stock"
     },
     {
@@ -18,8 +23,13 @@ const STOCK = {
       "color": "Royal Blue",
       "sku": "VX-EX01-09BL",
       "msrp": 31.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 18.55,
+      "breaks": [
+        [
+          12,
+          16.69
+        ]
+      ],
       "status": "Sold Out"
     },
     {
@@ -27,8 +37,13 @@ const STOCK = {
       "color": "Forest Green",
       "sku": "VX-EX01-09GN",
       "msrp": 31.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 18.55,
+      "breaks": [
+        [
+          12,
+          16.69
+        ]
+      ],
       "status": "In Stock"
     },
     {
@@ -36,8 +51,13 @@ const STOCK = {
       "color": "Fire Red",
       "sku": "VX-EX01-09RD",
       "msrp": 31.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 18.55,
+      "breaks": [
+        [
+          12,
+          16.69
+        ]
+      ],
       "status": "In Stock"
     },
     {
@@ -45,8 +65,13 @@ const STOCK = {
       "color": "Ocean Blue",
       "sku": "VX-EX01-09TE",
       "msrp": 31.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 18.55,
+      "breaks": [
+        [
+          12,
+          16.69
+        ]
+      ],
       "status": "Sold Out"
     },
     {
@@ -54,8 +79,13 @@ const STOCK = {
       "color": "Sunrise Yellow",
       "sku": "VX-EX01-09YL",
       "msrp": 31.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 18.55,
+      "breaks": [
+        [
+          12,
+          16.69
+        ]
+      ],
       "status": "In Stock"
     },
     {
@@ -63,8 +93,13 @@ const STOCK = {
       "color": "Signature Black",
       "sku": "VX-EX01-12BK",
       "msrp": 35.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 21.67,
+      "breaks": [
+        [
+          12,
+          19.5
+        ]
+      ],
       "status": "In Stock"
     },
     {
@@ -72,8 +107,13 @@ const STOCK = {
       "color": "Royal Blue",
       "sku": "VX-EX01-12BL",
       "msrp": 35.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 21.67,
+      "breaks": [
+        [
+          12,
+          19.5
+        ]
+      ],
       "status": "In Stock"
     },
     {
@@ -81,8 +121,13 @@ const STOCK = {
       "color": "Forest Green",
       "sku": "VX-EX01-12GN",
       "msrp": 35.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 21.67,
+      "breaks": [
+        [
+          12,
+          19.5
+        ]
+      ],
       "status": "In Stock"
     },
     {
@@ -90,8 +135,13 @@ const STOCK = {
       "color": "Fire Red",
       "sku": "VX-EX01-12RD",
       "msrp": 35.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 21.67,
+      "breaks": [
+        [
+          12,
+          19.5
+        ]
+      ],
       "status": "In Stock"
     },
     {
@@ -99,8 +149,13 @@ const STOCK = {
       "color": "Ocean Blue",
       "sku": "VX-EX01-12TE",
       "msrp": 35.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 21.67,
+      "breaks": [
+        [
+          12,
+          19.5
+        ]
+      ],
       "status": "In Stock"
     },
     {
@@ -108,71 +163,27 @@ const STOCK = {
       "color": "Sunrise Yellow",
       "sku": "VX-EX01-12YL",
       "msrp": 35.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 21.67,
+      "breaks": [
+        [
+          12,
+          19.5
+        ]
+      ],
       "status": "In Stock"
-    },
-    {
-      "size": "4-Pocket Exo-Tec® Zip Binder",
-      "color": "Signature Black",
-      "sku": "VX-EX01-04BK",
-      "msrp": 24.99,
-      "b2b_min1": null,
-      "breaks": [],
-      "status": "Sold Out"
-    },
-    {
-      "size": "4-Pocket Exo-Tec® Zip Binder",
-      "color": "Royal Blue",
-      "sku": "VX-EX01-04BL",
-      "msrp": 24.99,
-      "b2b_min1": null,
-      "breaks": [],
-      "status": "Sold Out"
-    },
-    {
-      "size": "4-Pocket Exo-Tec® Zip Binder",
-      "color": "Forest Green",
-      "sku": "VX-EX01-04GN",
-      "msrp": 24.99,
-      "b2b_min1": null,
-      "breaks": [],
-      "status": "Sold Out"
-    },
-    {
-      "size": "4-Pocket Exo-Tec® Zip Binder",
-      "color": "Fire Red",
-      "sku": "VX-EX01-04RD",
-      "msrp": 24.99,
-      "b2b_min1": null,
-      "breaks": [],
-      "status": "Sold Out"
-    },
-    {
-      "size": "4-Pocket Exo-Tec® Zip Binder",
-      "color": "Ocean Blue",
-      "sku": "VX-EX01-04TE",
-      "msrp": 24.99,
-      "b2b_min1": null,
-      "breaks": [],
-      "status": "Sold Out"
-    },
-    {
-      "size": "4-Pocket Exo-Tec® Zip Binder",
-      "color": "Sunrise Yellow",
-      "sku": "VX-EX01-04YL",
-      "msrp": 24.99,
-      "b2b_min1": null,
-      "breaks": [],
-      "status": "Sold Out"
     },
     {
       "size": "12-Pocket Exo-Tec® Zip Binder XL",
       "color": "Signature Black",
       "sku": "VX-EX01-12XLBK",
       "msrp": 38.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 23.22,
+      "breaks": [
+        [
+          10,
+          20.9
+        ]
+      ],
       "status": "In Stock"
     },
     {
@@ -180,8 +191,13 @@ const STOCK = {
       "color": "Royal Blue",
       "sku": "VX-EX01-12XLBL",
       "msrp": 38.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 23.22,
+      "breaks": [
+        [
+          10,
+          20.9
+        ]
+      ],
       "status": "In Stock"
     },
     {
@@ -189,8 +205,13 @@ const STOCK = {
       "color": "Forest Green",
       "sku": "VX-EX01-12XLGN",
       "msrp": 38.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 23.22,
+      "breaks": [
+        [
+          10,
+          20.9
+        ]
+      ],
       "status": "In Stock"
     },
     {
@@ -198,8 +219,13 @@ const STOCK = {
       "color": "Fire Red",
       "sku": "VX-EX01-12XLRD",
       "msrp": 38.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 23.22,
+      "breaks": [
+        [
+          10,
+          20.9
+        ]
+      ],
       "status": "In Stock"
     },
     {
@@ -207,8 +233,13 @@ const STOCK = {
       "color": "Ocean Blue",
       "sku": "VX-EX01-12XLTE",
       "msrp": 38.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 23.22,
+      "breaks": [
+        [
+          10,
+          20.9
+        ]
+      ],
       "status": "In Stock"
     },
     {
@@ -216,8 +247,13 @@ const STOCK = {
       "color": "Sunrise Yellow",
       "sku": "VX-EX01-12XLYL",
       "msrp": 38.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 23.22,
+      "breaks": [
+        [
+          10,
+          20.9
+        ]
+      ],
       "status": "In Stock"
     },
     {
@@ -225,8 +261,13 @@ const STOCK = {
       "color": "Signature Black",
       "sku": "VX-EX01-16BK",
       "msrp": 42.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 24.07,
+      "breaks": [
+        [
+          5,
+          21.68
+        ]
+      ],
       "status": "In Stock"
     },
     {
@@ -234,8 +275,13 @@ const STOCK = {
       "color": "Royal Blue",
       "sku": "VX-EX01-16BL",
       "msrp": 42.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 24.07,
+      "breaks": [
+        [
+          5,
+          21.68
+        ]
+      ],
       "status": "Sold Out"
     },
     {
@@ -243,8 +289,13 @@ const STOCK = {
       "color": "Forest green",
       "sku": "VX-EX01-16GN",
       "msrp": 42.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 24.07,
+      "breaks": [
+        [
+          5,
+          21.68
+        ]
+      ],
       "status": "Sold Out"
     },
     {
@@ -252,8 +303,13 @@ const STOCK = {
       "color": "Fire Red",
       "sku": "VX-EX01-16RD",
       "msrp": 42.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 24.07,
+      "breaks": [
+        [
+          5,
+          21.68
+        ]
+      ],
       "status": "Sold Out"
     },
     {
@@ -261,8 +317,13 @@ const STOCK = {
       "color": "Ocean Blue",
       "sku": "VX-EX01-16TE",
       "msrp": 42.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 24.07,
+      "breaks": [
+        [
+          5,
+          21.68
+        ]
+      ],
       "status": "Sold Out"
     },
     {
@@ -270,8 +331,13 @@ const STOCK = {
       "color": "Sunrise Yellow",
       "sku": "VX-EX01-16YL",
       "msrp": 42.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 24.07,
+      "breaks": [
+        [
+          5,
+          21.68
+        ]
+      ],
       "status": "In Stock"
     },
     {
@@ -279,8 +345,13 @@ const STOCK = {
       "color": "Metallic Red",
       "sku": "VX-EX01-09RDMT",
       "msrp": 23.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 19.44,
+      "breaks": [
+        [
+          12,
+          17.49
+        ]
+      ],
       "status": "In Stock"
     },
     {
@@ -288,8 +359,13 @@ const STOCK = {
       "color": "Metallic Green",
       "sku": "VX-EX01-09GNMT",
       "msrp": 23.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 19.44,
+      "breaks": [
+        [
+          12,
+          17.49
+        ]
+      ],
       "status": "In Stock"
     },
     {
@@ -297,7 +373,7 @@ const STOCK = {
       "color": "ME1 (First Edition)",
       "sku": "ME-EX01-1201",
       "msrp": 32.99,
-      "b2b_min1": null,
+      "b2b_min1": 22.46,
       "breaks": [],
       "status": "Sold Out"
     },
@@ -306,16 +382,212 @@ const STOCK = {
       "color": "ME1 (Unlimited)",
       "sku": "ME-EX01-1201U",
       "msrp": 32.99,
-      "b2b_min1": null,
+      "b2b_min1": 22.46,
       "breaks": [],
       "status": "Pre-Order"
+    },
+    {
+      "size": "12-Pocket Exo-Tec® Zip Binder Metallic Red",
+      "color": "Metallic Red",
+      "sku": "VX-EX01-12RDMT",
+      "msrp": 28.99,
+      "b2b_min1": 22.46,
+      "breaks": [
+        [
+          12,
+          20.21
+        ]
+      ],
+      "status": "In Stock"
+    },
+    {
+      "size": "12-Pocket Exo-Tec Zip Binder Metallic Green",
+      "color": "Metallic Green",
+      "sku": "VX-EX01-12GNMT",
+      "msrp": 28.99,
+      "b2b_min1": 22.46,
+      "breaks": [
+        [
+          12,
+          20.21
+        ]
+      ],
+      "status": "In Stock"
+    },
+    {
+      "size": "4-Pocket Exo-Tec® Zip Binder",
+      "color": "Signature Black",
+      "sku": "VX-EX01-04BK",
+      "msrp": 24.99,
+      "b2b_min1": 12.14,
+      "breaks": [
+        [
+          12,
+          10.93
+        ]
+      ],
+      "status": "Sold Out"
+    },
+    {
+      "size": "4-Pocket Exo-Tec® Zip Binder",
+      "color": "Royal Blue",
+      "sku": "VX-EX01-04BL",
+      "msrp": 24.99,
+      "b2b_min1": 12.14,
+      "breaks": [
+        [
+          12,
+          10.93
+        ]
+      ],
+      "status": "Sold Out"
+    },
+    {
+      "size": "4-Pocket Exo-Tec® Zip Binder",
+      "color": "Forest Green",
+      "sku": "VX-EX01-04GN",
+      "msrp": 24.99,
+      "b2b_min1": 12.14,
+      "breaks": [
+        [
+          12,
+          10.93
+        ]
+      ],
+      "status": "Sold Out"
+    },
+    {
+      "size": "4-Pocket Exo-Tec® Zip Binder",
+      "color": "Fire Red",
+      "sku": "VX-EX01-04RD",
+      "msrp": 24.99,
+      "b2b_min1": 12.14,
+      "breaks": [
+        [
+          12,
+          10.93
+        ]
+      ],
+      "status": "Sold Out"
+    },
+    {
+      "size": "4-Pocket Exo-Tec® Zip Binder",
+      "color": "Ocean Blue",
+      "sku": "VX-EX01-04TE",
+      "msrp": 24.99,
+      "b2b_min1": 12.14,
+      "breaks": [
+        [
+          12,
+          10.93
+        ]
+      ],
+      "status": "Sold Out"
+    },
+    {
+      "size": "4-Pocket Exo-Tec® Zip Binder",
+      "color": "Sunrise Yellow",
+      "sku": "VX-EX01-04YL",
+      "msrp": 24.99,
+      "b2b_min1": 12.14,
+      "breaks": [
+        [
+          12,
+          10.93
+        ]
+      ],
+      "status": "Sold Out"
+    },
+    {
+      "size": "9-Pocket Exo-Tec® Zip Binder Just Purple",
+      "color": "Just Purple",
+      "sku": "VX-EX01-09MPR",
+      "msrp": null,
+      "b2b_min1": 19.44,
+      "breaks": [
+        [
+          12,
+          17.49
+        ]
+      ],
+      "status": "Sold Out"
+    },
+    {
+      "size": "9-Pocket Exo-Tec® Zip Binder Just Pink",
+      "color": "Just Pink",
+      "sku": "VX-EX01-09MPK",
+      "msrp": null,
+      "b2b_min1": 19.44,
+      "breaks": [
+        [
+          12,
+          17.49
+        ]
+      ],
+      "status": "Sold Out"
+    },
+    {
+      "size": "12-Pocket Exo-Tec® Zip Binder Just Pink",
+      "color": "Just Pink",
+      "sku": "VX-EX01-12MPK",
+      "msrp": null,
+      "b2b_min1": 22.46,
+      "breaks": [
+        [
+          12,
+          20.21
+        ]
+      ],
+      "status": "Sold Out"
+    },
+    {
+      "size": "12-Pocket Exo-Tec® Zip Binder Just Purple",
+      "color": "Just Purple",
+      "sku": "VX-EX01-12MPR",
+      "msrp": null,
+      "b2b_min1": 22.46,
+      "breaks": [
+        [
+          12,
+          20.21
+        ]
+      ],
+      "status": "Sold Out"
+    },
+    {
+      "size": "4-Pocket Exo-Tec® Zip Binder Just Purple",
+      "color": "Just Purple",
+      "sku": "VX-EX01-04MPR",
+      "msrp": null,
+      "b2b_min1": 13.34,
+      "breaks": [
+        [
+          12,
+          12.01
+        ]
+      ],
+      "status": "Sold Out"
+    },
+    {
+      "size": "4-Pocket Exo-Tec® Zip Binder Just Pink",
+      "color": "Just Pink",
+      "sku": "VX-EX01-04MPK",
+      "msrp": null,
+      "b2b_min1": 13.34,
+      "breaks": [
+        [
+          12,
+          12.01
+        ]
+      ],
+      "status": "Sold Out"
     },
     {
       "size": "9-Pocket Exo-Tec® Zip Binder ME1",
       "color": "ME1 (First Edition)",
       "sku": "ME-EX01-0901",
       "msrp": 26.99,
-      "b2b_min1": null,
+      "b2b_min1": 19.44,
       "breaks": [],
       "status": "Sold Out"
     },
@@ -324,7 +596,7 @@ const STOCK = {
       "color": "ME1 (Unlimited)",
       "sku": "ME-EX01-0901U",
       "msrp": 26.99,
-      "b2b_min1": null,
+      "b2b_min1": 19.44,
       "breaks": [],
       "status": "Sold Out"
     },
@@ -333,125 +605,27 @@ const STOCK = {
       "color": "Metallic Red",
       "sku": "VX-EX01-04RDMT",
       "msrp": 16.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 13.34,
+      "breaks": [
+        [
+          12,
+          12.01
+        ]
+      ],
       "status": "Sold Out"
-    },
-    {
-      "size": "12-Pocket Exo-Tec® Zip Binder Metallic Red",
-      "color": "Metallic Red",
-      "sku": "VX-EX01-12RDMT",
-      "msrp": 28.99,
-      "b2b_min1": null,
-      "breaks": [],
-      "status": "In Stock"
-    },
-    {
-      "size": "12-Pocket Exo-Tec Zip Binder Metallic Green",
-      "color": "Metallic Green",
-      "sku": "VX-EX01-12GNMT",
-      "msrp": 28.99,
-      "b2b_min1": null,
-      "breaks": [],
-      "status": "In Stock"
     },
     {
       "size": "4-Pocket Exo-Tec® Zip Binder Metallic Green",
       "color": "Metallic Green",
       "sku": "VX-EX01-04GNMT",
       "msrp": 16.99,
-      "b2b_min1": null,
-      "breaks": [],
-      "status": "Sold Out"
-    },
-    {
-      "size": "9-Pocket Exo-Tec® Zip Binder ME4",
-      "color": "ME4 (First Edition)",
-      "sku": "ME-EX01-0904",
-      "msrp": 26.99,
-      "b2b_min1": null,
-      "breaks": [],
-      "status": "Sold Out"
-    },
-    {
-      "size": "9-Pocket Exo-Tec® Zip Binder ME4",
-      "color": "ME4 (Unlimited)",
-      "sku": "ME-EX01-0904U",
-      "msrp": 26.99,
-      "b2b_min1": null,
-      "breaks": [],
-      "status": "Sold Out"
-    },
-    {
-      "size": "12-Pocket Exo-Tec® Zip Binder ME4",
-      "color": "ME4 (First Edition)",
-      "sku": "ME-EX01-1204",
-      "msrp": 32.99,
-      "b2b_min1": null,
-      "breaks": [],
-      "status": "Sold Out"
-    },
-    {
-      "size": "12-Pocket Exo-Tec® Zip Binder ME4",
-      "color": "ME4 (Unlimited)",
-      "sku": "ME-EX01-1204U",
-      "msrp": 32.99,
-      "b2b_min1": null,
-      "breaks": [],
-      "status": "Sold Out"
-    },
-    {
-      "size": "4-Pocket Exo-Tec® Zip Binder Just Pink",
-      "color": "Just Pink",
-      "sku": "VX-EX01-04MPK",
-      "msrp": 16.99,
-      "b2b_min1": null,
-      "breaks": [],
-      "status": "Sold Out"
-    },
-    {
-      "size": "9-Pocket Exo-Tec® Zip Binder Just Pink",
-      "color": "Just Pink",
-      "sku": "VX-EX01-09MPK",
-      "msrp": 23.99,
-      "b2b_min1": null,
-      "breaks": [],
-      "status": "Sold Out"
-    },
-    {
-      "size": "12-Pocket Exo-Tec® Zip Binder Just Pink",
-      "color": "Just Pink",
-      "sku": "VX-EX01-12MPK",
-      "msrp": 28.99,
-      "b2b_min1": null,
-      "breaks": [],
-      "status": "Sold Out"
-    },
-    {
-      "size": "4-Pocket Exo-Tec® Zip Binder Just Purple",
-      "color": "Just Purple",
-      "sku": "VX-EX01-04MPR",
-      "msrp": 16.99,
-      "b2b_min1": null,
-      "breaks": [],
-      "status": "Sold Out"
-    },
-    {
-      "size": "9-Pocket Exo-Tec® Zip Binder Just Purple",
-      "color": "Just Purple",
-      "sku": "VX-EX01-09MPR",
-      "msrp": 23.99,
-      "b2b_min1": null,
-      "breaks": [],
-      "status": "Sold Out"
-    },
-    {
-      "size": "12-Pocket Exo-Tec® Zip Binder Just Purple",
-      "color": "Just Purple",
-      "sku": "VX-EX01-12MPR",
-      "msrp": 28.99,
-      "b2b_min1": null,
-      "breaks": [],
+      "b2b_min1": 13.34,
+      "breaks": [
+        [
+          12,
+          12.01
+        ]
+      ],
       "status": "Sold Out"
     }
   ]
