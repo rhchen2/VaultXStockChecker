@@ -5,6 +5,7 @@ vaultx_tmp.json
 .venv/
 # Local capture artifacts (may contain session tokens) - never commit
 *.har
+.browser-profile/
 page.html
 sf_query.json
 sf_ctx.json

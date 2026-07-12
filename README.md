@@ -5,13 +5,22 @@ and generates a PDF report of every size and color, showing **what is in stock a
 
 ## How it works
 
-The store runs on Shopify, which exposes a public `products.json` endpoint per
-collection. The script reads that JSON directly (no HTML scraping / browser
-needed), so it's fast and reliable:
+The store runs on Shopify **B2B**, which is login-gated: anonymously, Shopify
+only exposes the products published to the public online-store channel (MSRP
+prices and public availability — effectively the B2C view). So the scraper has
+two modes:
+
+- **B2B mode (`--har`, recommended):** walks the
+  [B2B collection page](https://us.b2b.vaultx.com/collections/zip-binders) with
+  your logged-in company session to enumerate every product your account can
+  buy, then reads each authenticated `/products/<handle>.js` for per-variant
+  **B2B availability** and **B2B pricing** (1+ and volume breaks).
+- **Public fallback (no `--har`):** reads the anonymous
+  `products.json` feed — only the publicly published subset, MSRP-only.
 
 - Each **product** = a size (9-Pocket, 12-Pocket, 4-Pocket, 12-Pocket XL,
   16-Pocket XXL, plus Metallic and ME4 editions).
-- Each **variant** = a color/edition, with its `price` and `available` flag.
+- Each **variant** = a color/edition, with its price and `available` flag.
 
 It walks every size and every color, then builds a PDF with an **In Stock**
 table (size, color, SKU, price, status). Use `--all` to also append an
@@ -36,11 +45,13 @@ py scrape_vaultx.py --all
 py scrape_vaultx.py --collection deck-boxes --out DeckBoxes.pdf
 ```
 
-## B2B account pricing (`--har`)
+## B2B catalog & pricing (`--har`)
 
-The public endpoints only expose the MSRP. The discounted B2B pricing
-(per-item `1+` price and quantity-break/`Volume` price) is only returned when
-the request carries your logged-in company session. To include it:
+The public endpoints only expose the MSRP and the publicly published subset of
+products. The real B2B catalog — the full product list, its stock status, and
+the discounted pricing (per-item `1+` price and quantity-break/`Volume`
+price) — is only returned when the request carries your logged-in company
+session. To scrape it:
 
 1. Log in at `us.b2b.vaultx.com` so you can see your pricing.
 2. Open any product page, press **F12 -> Network**, tick **Preserve log**,
@@ -53,10 +64,10 @@ the request carries your logged-in company session. To include it:
    py scrape_vaultx.py --all --har "path/to/session.har" --out VaultX_Stock_B2B.pdf
    ```
 
-The script reads the session cookie from the HAR, then fetches
-`/products/<handle>.js` for every product to get each variant's `1+` price,
-volume breaks, and quantity rule. The PDF then shows **1+ (ea) | Volume (ea) |
-MSRP** columns.
+The script reads the session cookie from the HAR, enumerates the collection as
+your company sees it, then fetches `/products/<handle>.js` for every product to
+get each variant's availability, `1+` price, and volume breaks. The PDF then
+shows **1+ (ea) | Volume (ea) | MSRP** columns.
 
 > The session expires, so re-capture the HAR when pricing stops coming through.
 > `*.har` is git-ignored and never committed (it contains session tokens).
@@ -144,8 +155,8 @@ Two ways to add/update an order:
 ## Daily auto-update (GitHub Actions)
 
 [`.github/workflows/update-stock.yml`](.github/workflows/update-stock.yml) runs
-daily (13:00 UTC), regenerates the **public** snapshot, commits it only if it
-changed, and redeploys to Vercel.
+daily (13:00 UTC), runs the tests, regenerates the snapshot, commits it only if
+it changed, and redeploys to Vercel.
 
 One-time setup — add a repo secret so the job can deploy:
 
@@ -154,13 +165,55 @@ One-time setup — add a repo secret so the job can deploy:
    name `VERCEL_TOKEN`, paste the token.
 
 The Vercel project/org IDs are already in the workflow (they aren't secrets).
-Trigger a manual run from the **Actions** tab to test. The auto-updates are
-public/MSRP-only so they run unattended; use `make_b2b_site.py` to refresh the
-live site with B2B pricing on demand (the next daily run reverts it to public).
+Trigger a manual run from the **Actions** tab to test.
+
+**Optional — B2B data in the daily job:** add a second secret,
+`VAULTX_B2B_COOKIE`, containing the raw `Cookie` header from a logged-in
+`us.b2b.vaultx.com` request (F12 → Network → any request → copy the `Cookie`
+header value). While the session is valid, the daily snapshot uses the true B2B
+catalog, availability and pricing; when it expires, the job logs a warning and
+falls back to the public/MSRP feed. Refresh the secret whenever that happens —
+or automate it (below), or use `make_b2b_site.py` to refresh the site on demand.
+
+### Automated cookie refresh (`refresh_cookie.py`)
+
+The B2B store uses Shopify's passwordless accounts (email + 6-digit code), so
+a login can't simply be scripted with stored credentials. Instead
+`refresh_cookie.py` keeps a **persistent logged-in browser profile** alive:
+Shopify sessions renew on use and only expire when idle, so a daily visit from
+the same profile stays logged in indefinitely. Each run verifies the session
+(products actually visible on the B2B collection), extracts the cookies, and
+updates the `VAULTX_B2B_COOKIE` repo secret via the `gh` CLI.
+
+```sh
+# one-time: install deps + authenticate gh
+py -m pip install playwright && py -m playwright install chromium
+gh auth login
+
+# one-time: opens a visible browser - log in (email + code) when it appears
+py refresh_cookie.py --setup
+
+# test a refresh without touching the secret, then for real
+py refresh_cookie.py --no-push
+py refresh_cookie.py
+```
+
+Schedule it daily (before the 13:00 UTC stock job) on any always-on machine:
+
+```powershell
+schtasks /Create /SC DAILY /ST 06:30 /TN VaultXCookieRefresh /TR "py C:\path\to\VaultXStockChecker\refresh_cookie.py"
+```
+
+If a run reports it's not logged in (Shopify forced a re-auth - rare), just
+run `--setup` again. The profile lives in the git-ignored `.browser-profile/`
+directory; treat it like a password. Use `--headed` if headless runs get
+blocked by bot protection.
 
 ## Notes
 
-- Without `--har`, prices are the public MSRP from the storefront listing.
+- Without `--har`, prices are the public MSRP and availability reflects the
+  public online-store channel, which can differ from your B2B catalog.
+- Run the tests with `py -m pip install -r requirements-dev.txt && py -m pytest`.
 - The same script works for any Vault X collection by passing `--collection`
   with the collection's handle (the slug in its URL).
 - Pre-order/drop products (e.g. the ME4 editions) have no `.js` pricing
