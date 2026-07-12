@@ -1,18 +1,26 @@
 #!/usr/bin/env python3
 """
-Regenerate web/data.js from a fresh public scrape of the VaultX collection.
+Regenerate web/data.js from a fresh scrape of the VaultX collection.
 
-Public pricing only (MSRP + stock status) so it runs fully unattended - no
-logged-in session/HAR required. Used by the daily GitHub Actions job.
+Used by the daily GitHub Actions job. Scrapes the logged-in B2B catalog
+(true B2B product list, availability and pricing) when a session is available
+via --har or the VAULTX_B2B_COOKIE env var (a raw Cookie header string, e.g.
+from a repo secret). Without a session it falls back to the public
+online-store feed (MSRP + public availability only).
 
 Usage:
     py build_web_data.py
+    py build_web_data.py --har session.har
     py build_web_data.py --collection zip-binders --out web/data.js
 """
 
 import argparse
 import datetime as dt
 import json
+import os
+import sys
+
+import requests
 
 import scrape_vaultx as vx
 
@@ -44,10 +52,16 @@ EXTRA_ROWS = [
 ]
 
 
-def extra_rows(include_b2b):
-    """Return the hard-coded extra products, with or without B2B pricing."""
+def extra_rows(include_b2b, existing_skus=frozenset()):
+    """Return the hard-coded extra products, with or without B2B pricing.
+
+    Skips SKUs already present in the scraped rows so a logged-in B2B scrape
+    (which sees the login-gated products directly) doesn't duplicate them.
+    """
     out = []
     for e in EXTRA_ROWS:
+        if e["sku"] in existing_skus:
+            continue
         r = dict(e)
         if not include_b2b:
             r["b2b_min1"] = None
@@ -94,11 +108,48 @@ def main():
     parser = argparse.ArgumentParser(description="Regenerate web/data.js")
     parser.add_argument("--collection", default=vx.DEFAULT_COLLECTION)
     parser.add_argument("--out", default="web/data.js")
+    parser.add_argument("--har", default=None,
+                        help="HAR from a logged-in us.b2b.vaultx.com session; "
+                             "scrapes the true B2B catalog instead of the "
+                             "public feed")
     args = parser.parse_args()
 
-    products = vx.fetch_products(args.collection)
-    rows = vx.build_rows(products)  # public only -> b2b fields are None/empty
-    rows += extra_rows(include_b2b=False)  # login-gated products (public view)
+    public_products = []
+    try:
+        public_products = vx.fetch_products(args.collection)
+    except requests.RequestException as e:
+        # Only fatal if we also lack a B2B session to scrape from.
+        print(f"WARNING: public feed unavailable ({e}).", file=sys.stderr)
+
+    cookie = user_agent = None
+    if args.har:
+        cookie, user_agent = vx.load_har_session(args.har)
+    elif os.environ.get("VAULTX_B2B_COOKIE"):
+        cookie = os.environ["VAULTX_B2B_COOKIE"]
+        user_agent = vx.HEADERS["User-Agent"]
+
+    rows = None
+    if cookie:
+        try:
+            products, b2b_map = vx.fetch_b2b_catalog(
+                args.collection, cookie, user_agent,
+                vx.msrp_map(public_products))
+            rows = vx.build_rows(products, b2b_map=b2b_map)
+            rows += extra_rows(include_b2b=True,
+                               existing_skus={r["sku"] for r in rows})
+            print(f"Scraped B2B catalog: {len(products)} products.")
+        except (ValueError, requests.RequestException) as e:
+            print(f"WARNING: B2B scrape failed ({e}); falling back to the "
+                  "public feed.", file=sys.stderr)
+
+    if rows is None:
+        if not public_products:
+            print("ERROR: no data from either the B2B session or the public "
+                  "feed; keeping the existing snapshot.", file=sys.stderr)
+            raise SystemExit(1)
+        rows = vx.build_rows(public_products)  # public -> b2b fields None/empty
+        rows += extra_rows(include_b2b=False,
+                           existing_skus={r["sku"] for r in rows})
     write_web_data(rows, args.collection, args.out)
 
 

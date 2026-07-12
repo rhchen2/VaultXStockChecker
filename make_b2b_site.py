@@ -2,17 +2,19 @@
 """
 One-command refresh of the web front-end *with B2B pricing*, then deploy.
 
-Unlike the daily GitHub Actions job (which is public/MSRP-only so it can run
-unattended), this pulls your logged-in B2B pricing from a browser HAR capture,
-rebuilds web/data.js with 1+/volume prices, and deploys to Vercel.
+Pulls your logged-in B2B session from a browser HAR capture, scrapes the B2B
+catalog (full product list, availability and 1+/volume pricing), rebuilds
+web/data.js, and deploys to Vercel. The daily GitHub Actions job does the same
+when the VAULTX_B2B_COOKIE secret holds a valid session; otherwise it falls
+back to the public/MSRP feed.
 
     py make_b2b_site.py                       # auto-detect newest *.har, deploy
     py make_b2b_site.py --har session.har     # explicit HAR
     py make_b2b_site.py --no-deploy           # rebuild data.js only
 
-Note: the daily cron will overwrite the site back to public/MSRP pricing on its
-next run, so re-run this whenever you want the live site to show B2B pricing.
-Capture a fresh HAR when the session expires (see README).
+Note: if the daily cron has no valid VAULTX_B2B_COOKIE it will overwrite the
+site back to public/MSRP data on its next run, so re-run this (with a fresh HAR
+when the session expires - see README) to restore the B2B view.
 """
 
 import argparse
@@ -20,6 +22,8 @@ import glob
 import os
 import subprocess
 import sys
+
+import requests
 
 import scrape_vaultx as vx
 from build_web_data import write_web_data, extra_rows
@@ -50,22 +54,26 @@ def main():
         return 1
     print(f"Using HAR: {har}")
 
-    products = vx.fetch_products(args.collection)
+    public_products = []
+    try:
+        public_products = vx.fetch_products(args.collection)  # MSRP enrichment
+    except requests.RequestException as e:
+        print(f"WARNING: public feed unavailable ({e}); MSRP column may be "
+              "blank.", file=sys.stderr)
+
     try:
         cookie, user_agent = vx.load_har_session(har)
-        b2b_map = vx.fetch_b2b_pricing(products, cookie, user_agent)
-        print(f"Got B2B pricing for {len(b2b_map)} variants.")
-    except (OSError, ValueError) as e:
-        print(f"ERROR loading B2B pricing: {e}", file=sys.stderr)
-        return 1
-
-    if not b2b_map:
-        print("ERROR: no B2B pricing returned - the session has likely expired. "
-              "Capture a fresh HAR.", file=sys.stderr)
+        products, b2b_map = vx.fetch_b2b_catalog(
+            args.collection, cookie, user_agent, vx.msrp_map(public_products))
+        print(f"Scraped B2B catalog: {len(products)} products, pricing for "
+              f"{len(b2b_map)} variants.")
+    except (OSError, ValueError, requests.RequestException) as e:
+        print(f"ERROR scraping B2B catalog: {e}", file=sys.stderr)
         return 1
 
     rows = vx.build_rows(products, b2b_map=b2b_map)
-    rows += extra_rows(include_b2b=True)  # login-gated products (with B2B pricing)
+    # login-gated products not already covered by the B2B scrape
+    rows += extra_rows(include_b2b=True, existing_skus={r["sku"] for r in rows})
     write_web_data(rows, args.collection, args.out, generated_by="make_b2b_site.py")
 
     if args.no_deploy:

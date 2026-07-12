@@ -2,22 +2,27 @@
 """
 VaultX Zip Binder stock checker.
 
-Scrapes the Vault X US B2B "Zip Binders" collection (a Shopify storefront),
+Scrapes the Vault X US B2B "Zip Binders" collection (a Shopify B2B storefront),
 walking every size (product) and every color (variant), and produces a PDF
 report listing what is in stock and the cost of each item.
 
-Shopify exposes a public `products.json` endpoint per collection that returns
-all products, their variants, prices and an `available` flag - no scraping of
-rendered HTML required.
+The B2B storefront is login-gated: anonymously, Shopify only exposes the
+products published to the public online-store channel (MSRP + public
+availability - effectively the B2C view). With --har (a capture from a
+logged-in us.b2b.vaultx.com session) the scraper instead walks the B2B
+collection page as your company sees it and reads each product's
+authenticated /products/<handle>.js, so the product list, stock status AND
+pricing (1+/volume) all come from the B2B catalog.
 
 Usage:
-    py scrape_vaultx.py
-    py scrape_vaultx.py --collection zip-binders --out VaultX_Stock.pdf
-    py scrape_vaultx.py --all   # include out-of-stock items in the report
+    py scrape_vaultx.py --har session.har   # true B2B catalog + pricing
+    py scrape_vaultx.py                     # public (MSRP-only) fallback
+    py scrape_vaultx.py --all               # include out-of-stock items
 """
 
 import argparse
 import datetime as dt
+import re
 import sys
 import time
 
@@ -40,6 +45,19 @@ DEFAULT_COLLECTION = "zip-binders"
 HEADERS = {"User-Agent": "Mozilla/5.0 (VaultXStockChecker; +https://github.com/rhchen2)"}
 
 
+def get_with_retry(url, retries=3, **kwargs):
+    """requests.get that retries polite-style on 429 (honours Retry-After)."""
+    for attempt in range(retries):
+        resp = requests.get(url, timeout=30, **kwargs)
+        if resp.status_code != 429 or attempt == retries - 1:
+            resp.raise_for_status()
+            return resp
+        wait = min(int(resp.headers.get("Retry-After") or 5), 60)
+        print(f"  rate-limited (429) on {url}; retrying in {wait}s ...",
+              file=sys.stderr)
+        time.sleep(wait)
+
+
 def fetch_products(collection, base_url=BASE_URL):
     """Return all products in a Shopify collection via the public products.json API.
 
@@ -50,8 +68,7 @@ def fetch_products(collection, base_url=BASE_URL):
     while True:
         url = f"{base_url}/collections/{collection}/products.json"
         params = {"limit": 250, "page": page}
-        resp = requests.get(url, params=params, headers=HEADERS, timeout=30)
-        resp.raise_for_status()
+        resp = get_with_retry(url, params=params, headers=HEADERS)
         batch = resp.json().get("products", [])
         if not batch:
             break
@@ -91,33 +108,64 @@ def load_har_session(har_path):
     return cookie, user_agent or HEADERS["User-Agent"]
 
 
-def fetch_b2b_pricing(products, cookie, user_agent, base_url=BASE_URL):
-    """Fetch per-variant B2B pricing via the authenticated /products/<handle>.js.
+def extract_handles(html, collection):
+    """Return product handles linked from a rendered collection page, in order.
 
-    Returns a dict keyed by SKU:
-        {sku: {"min1": float, "breaks": [(min_qty, price_float), ...]}}
-    Prices in the .js endpoint are integer cents.
+    Prefers links scoped to the collection (/collections/<c>/products/<h>) so
+    nav/recommendation links elsewhere on the page don't leak in; falls back to
+    bare /products/<h> links for themes that don't scope product-card URLs.
     """
-    pricing = {}
-    headers = {"Cookie": cookie, "User-Agent": user_agent,
-               "Accept": "application/json"}
+    scoped = rf'href="[^"]*/collections/{re.escape(collection)}/products/([a-z0-9][a-z0-9_-]*)'
+    handles = re.findall(scoped, html)
+    if not handles:
+        handles = re.findall(r'href="[^"]*/products/([a-z0-9][a-z0-9_-]*)', html)
+    return list(dict.fromkeys(handles))
+
+
+def msrp_map(products):
+    """Map SKU -> MSRP (float) from a public products.json product list."""
+    out = {}
     for p in products:
-        handle = p.get("handle")
-        if not handle:
-            continue
-        url = f"{base_url}/products/{handle}.js"
-        try:
-            resp = requests.get(url, headers=headers, timeout=30)
-            resp.raise_for_status()
-            data = resp.json()
-        except (requests.RequestException, ValueError) as e:
-            print(ascii_safe(f"  warning: could not fetch B2B pricing for "
-                             f"{handle}: {e}"), file=sys.stderr)
-            continue
-        for v in data.get("variants", []):
+        for v in p.get("variants", []):
             sku = v.get("sku")
-            if not sku:
+            try:
+                price = float(v.get("price"))
+            except (TypeError, ValueError):
                 continue
+            if sku:
+                out[sku] = price
+    return out
+
+
+def normalize_js_product(data, msrp_by_sku=None):
+    """Convert an authenticated /products/<handle>.js payload into the
+    products.json-like shape build_rows() expects, plus its B2B pricing.
+
+    In the .js endpoint prices are integer cents and, for a logged-in B2B
+    session, ``price`` is your account's 1+ price while ``compare_at_price``
+    (when set) is retail. MSRP is taken from ``msrp_by_sku`` (the public feed)
+    first since B2B-only products often have no compare_at_price.
+
+    Returns (product_dict, {sku: {"min1": float, "breaks": [(qty, price)]}}).
+    """
+    msrp_by_sku = msrp_by_sku or {}
+    variants = []
+    pricing = {}
+    for v in data.get("variants", []):
+        sku = v.get("sku") or ""
+        options = v.get("options") or []
+        color = v.get("option1") or (options[0] if options else "") or v.get("title") or ""
+        msrp = msrp_by_sku.get(sku)
+        if msrp is None and v.get("compare_at_price"):
+            msrp = v["compare_at_price"] / 100.0
+        variants.append({
+            "sku": sku,
+            "option1": color,
+            "title": v.get("title") or "",
+            "price": msrp,
+            "available": bool(v.get("available")),
+        })
+        if sku:
             breaks = [
                 (b.get("minimum_quantity"), b.get("price", 0) / 100.0)
                 for b in (v.get("quantity_price_breaks") or [])
@@ -128,8 +176,59 @@ def fetch_b2b_pricing(products, cookie, user_agent, base_url=BASE_URL):
                 "min1": (v.get("price") or 0) / 100.0,
                 "breaks": breaks,
             }
+    product = {
+        "title": data.get("title", ""),
+        "handle": data.get("handle", ""),
+        "tags": data.get("tags") or [],
+        "variants": variants,
+    }
+    return product, pricing
+
+
+def fetch_b2b_catalog(collection, cookie, user_agent, msrp_by_sku=None,
+                      base_url=BASE_URL, max_pages=20):
+    """Fetch the collection as the logged-in B2B company sees it.
+
+    Walks the rendered collection pages (they're empty without a session) to
+    enumerate product handles, then reads each authenticated
+    /products/<handle>.js for variants, B2B availability and B2B pricing.
+
+    Returns (products, pricing) suitable for build_rows(products, pricing).
+    Raises ValueError if the session shows no products (expired cookie).
+    """
+    headers = {"Cookie": cookie, "User-Agent": user_agent}
+    handles = []
+    for page in range(1, max_pages + 1):
+        resp = get_with_retry(f"{base_url}/collections/{collection}",
+                              params={"page": page}, headers=headers)
+        new = [h for h in extract_handles(resp.text, collection)
+               if h not in handles]
+        if not new:
+            break
+        handles.extend(new)
+        time.sleep(0.5)  # be polite
+    if not handles:
+        raise ValueError(
+            f"No products visible at {base_url}/collections/{collection} with "
+            "this session - the B2B login has likely expired. Capture a fresh HAR.")
+
+    products = []
+    pricing = {}
+    js_headers = dict(headers, Accept="application/json")
+    for handle in handles:
+        try:
+            resp = get_with_retry(f"{base_url}/products/{handle}.js",
+                                  headers=js_headers)
+            data = resp.json()
+        except (requests.RequestException, ValueError) as e:
+            print(ascii_safe(f"  warning: could not fetch B2B product "
+                             f"{handle}: {e}"), file=sys.stderr)
+            continue
+        product, p = normalize_js_product(data, msrp_by_sku)
+        products.append(product)
+        pricing.update(p)
         time.sleep(0.3)  # be polite
-    return pricing
+    return products, pricing
 
 
 def build_rows(products, b2b_map=None):
@@ -410,7 +509,9 @@ def main():
                         help="Include out-of-stock items in the report")
     parser.add_argument("--har", default=None,
                         help="Path to a HAR file from a logged-in us.b2b.vaultx.com "
-                             "session; adds B2B per-item pricing (1+, volume, MSRP)")
+                             "session; scrapes the B2B catalog (product list, "
+                             "availability AND 1+/volume pricing) instead of the "
+                             "public online-store feed")
     parser.add_argument("--discord-webhook", default=None,
                         help="Discord webhook URL to post the summary + PDF to. "
                              "Falls back to the VAULTX_DISCORD_WEBHOOK env var.")
@@ -419,28 +520,35 @@ def main():
     import os
     webhook = args.discord_webhook or os.environ.get("VAULTX_DISCORD_WEBHOOK")
 
-    print(f"Fetching collection '{args.collection}' from {BASE_URL} ...")
+    print(f"Fetching public collection '{args.collection}' from {BASE_URL} ...")
+    products = []
     try:
         products = fetch_products(args.collection)
     except requests.RequestException as e:
-        print(f"ERROR fetching products: {e}", file=sys.stderr)
-        return 1
-
-    if not products:
-        print("No products returned. Check the collection handle.", file=sys.stderr)
-        return 1
+        print(f"ERROR fetching public products: {e}", file=sys.stderr)
+        if not args.har:
+            return 1
 
     b2b_map = None
     if args.har:
         print(f"Loading B2B session from HAR: {args.har}")
         try:
             cookie, user_agent = load_har_session(args.har)
-            print(f"Fetching B2B pricing for {len(products)} products ...")
-            b2b_map = fetch_b2b_pricing(products, cookie, user_agent)
-            print(f"Got B2B pricing for {len(b2b_map)} variants.")
-        except (OSError, ValueError) as e:
-            print(f"ERROR loading B2B pricing from HAR: {e}", file=sys.stderr)
-            print("Continuing with public (MSRP) pricing only.", file=sys.stderr)
+            print("Fetching the B2B collection as your logged-in company ...")
+            products, b2b_map = fetch_b2b_catalog(
+                args.collection, cookie, user_agent, msrp_map(products))
+            print(f"B2B catalog: {len(products)} products, "
+                  f"pricing for {len(b2b_map)} variants.")
+        except (OSError, ValueError, requests.RequestException) as e:
+            print(f"ERROR fetching B2B catalog: {e}", file=sys.stderr)
+            if not products:
+                return 1
+            print("Continuing with the public catalog (MSRP + public "
+                  "availability) only.", file=sys.stderr)
+
+    if not products:
+        print("No products returned. Check the collection handle.", file=sys.stderr)
+        return 1
 
     rows = build_rows(products, b2b_map=b2b_map)
     in_stock = sum(1 for r in rows if r["status"] == "In Stock")
