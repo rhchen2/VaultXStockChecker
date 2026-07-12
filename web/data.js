@@ -47,7 +47,7 @@ const STOCK = {
       "msrp": 31.99,
       "b2b_min1": null,
       "breaks": [],
-      "status": "In Stock"
+      "status": "Sold Out"
     },
     {
       "size": "9-Pocket Exo-Tec® Zip Binder",
