@@ -48,11 +48,9 @@ def main():
     args = parser.parse_args()
 
     har = args.har or newest_har()
-    if not har or not os.path.exists(har):
-        print("ERROR: no HAR file found. Capture one (see README) or pass --har.",
-              file=sys.stderr)
+    if har and not os.path.exists(har):
+        print(f"ERROR: HAR file not found: {har}", file=sys.stderr)
         return 1
-    print(f"Using HAR: {har}")
 
     public_products = []
     try:
@@ -62,7 +60,13 @@ def main():
               "blank.", file=sys.stderr)
 
     try:
-        cookie, user_agent = vx.load_har_session(har)
+        session = vx.resolve_session(har)
+        if not session:
+            print("ERROR: no B2B session found (no HAR, no VAULTX_B2B_COOKIE, "
+                  "no browser profile - see README).", file=sys.stderr)
+            return 1
+        cookie, user_agent, source = session
+        print(f"Using B2B session from {source}.")
         products, b2b_map = vx.fetch_b2b_catalog(
             args.collection, cookie, user_agent, vx.msrp_map(public_products))
         print(f"Scraped B2B catalog: {len(products)} products, pricing for "

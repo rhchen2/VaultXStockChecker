@@ -132,6 +132,21 @@ def harvest_cookie(profile_dir, setup=False, headed=False):
             context.close()
 
 
+def alert(message):
+    """Best-effort Discord ping (VAULTX_DISCORD_WEBHOOK) so a dead session
+    doesn't fail silently until someone notices MSRP prices on the site."""
+    webhook = os.environ.get("VAULTX_DISCORD_WEBHOOK")
+    if not webhook:
+        return
+    try:
+        import requests
+        requests.post(webhook, json={"content": message,
+                                     "username": "VaultX Cookie Refresh"},
+                      timeout=15)
+    except Exception as e:
+        print(f"  note: Discord alert failed: {e}", file=sys.stderr)
+
+
 def push_secret(cookie):
     """Update the repo secret via gh, passing the value on stdin so it never
     appears in a process command line."""
@@ -160,6 +175,8 @@ def main():
                                 headed=args.headed)
     except RuntimeError as e:
         print(f"ERROR: {e}", file=sys.stderr)
+        alert(f":warning: VaultX cookie refresh failed - B2B session is dead. "
+              f"Run `py refresh_cookie.py --setup` on the NUC. ({e})")
         return 1
     print(f"Session is live; captured cookie ({len(cookie)} chars).")
 
@@ -172,6 +189,8 @@ def main():
         print(f"ERROR updating secret via gh: {e}", file=sys.stderr)
         print("Is the gh CLI installed and authenticated (gh auth login)?",
               file=sys.stderr)
+        alert(":warning: VaultX cookie refresh: session is fine but pushing "
+              f"the GitHub secret via gh failed ({e}).")
         return 1
     print(f"GitHub secret {SECRET_NAME} updated.")
     return 0

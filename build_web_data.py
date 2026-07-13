@@ -17,7 +17,6 @@ Usage:
 import argparse
 import datetime as dt
 import json
-import os
 import sys
 
 import requests
@@ -121,15 +120,12 @@ def main():
         # Only fatal if we also lack a B2B session to scrape from.
         print(f"WARNING: public feed unavailable ({e}).", file=sys.stderr)
 
-    cookie = user_agent = None
-    if args.har:
-        cookie, user_agent = vx.load_har_session(args.har)
-    elif os.environ.get("VAULTX_B2B_COOKIE"):
-        cookie = os.environ["VAULTX_B2B_COOKIE"]
-        user_agent = vx.HEADERS["User-Agent"]
+    session = vx.resolve_session(args.har)
 
     rows = None
-    if cookie:
+    if session:
+        cookie, user_agent, source = session
+        print(f"Using B2B session from {source}.")
         try:
             products, b2b_map = vx.fetch_b2b_catalog(
                 args.collection, cookie, user_agent,

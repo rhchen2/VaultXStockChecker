@@ -22,6 +22,7 @@ Usage:
 
 import argparse
 import datetime as dt
+import os
 import re
 import sys
 import time
@@ -106,6 +107,34 @@ def load_har_session(har_path):
     if not cookie:
         raise ValueError("No session cookie found in HAR for us.b2b.vaultx.com")
     return cookie, user_agent or HEADERS["User-Agent"]
+
+
+def resolve_session(har_path=None):
+    """Find a logged-in B2B session, in priority order:
+
+    1. an explicit HAR capture (--har),
+    2. the VAULTX_B2B_COOKIE env var (used by the GitHub Actions job),
+    3. the persistent browser profile kept fresh by refresh_cookie.py.
+
+    Returns (cookie, user_agent, source_description) or None. Raises only for
+    an explicitly requested HAR that can't be read; the automatic sources
+    degrade to None so callers fall back to the public feed.
+    """
+    if har_path:
+        cookie, user_agent = load_har_session(har_path)
+        return cookie, user_agent, f"HAR {har_path}"
+    if os.environ.get("VAULTX_B2B_COOKIE"):
+        return (os.environ["VAULTX_B2B_COOKIE"], HEADERS["User-Agent"],
+                "VAULTX_B2B_COOKIE env var")
+    try:
+        import refresh_cookie
+        if os.path.isdir(refresh_cookie.DEFAULT_PROFILE):
+            cookie = refresh_cookie.harvest_cookie(refresh_cookie.DEFAULT_PROFILE)
+            return cookie, HEADERS["User-Agent"], "browser profile"
+    except Exception as e:  # any profile problem -> public fallback, not a crash
+        print(f"  note: browser-profile session unavailable ({e})",
+              file=sys.stderr)
+    return None
 
 
 def extract_handles(html, collection):
@@ -517,8 +546,13 @@ def main():
                              "Falls back to the VAULTX_DISCORD_WEBHOOK env var.")
     args = parser.parse_args()
 
-    import os
     webhook = args.discord_webhook or os.environ.get("VAULTX_DISCORD_WEBHOOK")
+
+    try:
+        session = resolve_session(args.har)
+    except (OSError, ValueError) as e:
+        print(f"ERROR loading B2B session from HAR: {e}", file=sys.stderr)
+        return 1
 
     print(f"Fetching public collection '{args.collection}' from {BASE_URL} ...")
     products = []
@@ -526,20 +560,20 @@ def main():
         products = fetch_products(args.collection)
     except requests.RequestException as e:
         print(f"ERROR fetching public products: {e}", file=sys.stderr)
-        if not args.har:
+        if not session:
             return 1
 
     b2b_map = None
-    if args.har:
-        print(f"Loading B2B session from HAR: {args.har}")
+    if session:
+        cookie, user_agent, source = session
+        print(f"Using B2B session from {source}; fetching the catalog as "
+              "your logged-in company ...")
         try:
-            cookie, user_agent = load_har_session(args.har)
-            print("Fetching the B2B collection as your logged-in company ...")
             products, b2b_map = fetch_b2b_catalog(
                 args.collection, cookie, user_agent, msrp_map(products))
             print(f"B2B catalog: {len(products)} products, "
                   f"pricing for {len(b2b_map)} variants.")
-        except (OSError, ValueError, requests.RequestException) as e:
+        except (ValueError, requests.RequestException) as e:
             print(f"ERROR fetching B2B catalog: {e}", file=sys.stderr)
             if not products:
                 return 1

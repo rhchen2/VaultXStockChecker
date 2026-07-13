@@ -19,3 +19,8 @@ def test_looks_logged_in_true_when_products_render():
 
 def test_looks_logged_in_false_on_login_wall():
     assert rc.looks_logged_in("<html>please log in</html>") is False
+
+
+def test_alert_is_a_noop_without_webhook(monkeypatch):
+    monkeypatch.delenv("VAULTX_DISCORD_WEBHOOK", raising=False)
+    rc.alert("test message")  # must not raise or make any request

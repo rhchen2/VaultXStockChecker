@@ -4,6 +4,7 @@ No network: fetch_* functions are exercised only through their parsing and
 normalization helpers.
 """
 
+import json
 import sys
 
 import pytest
@@ -163,6 +164,49 @@ def test_extra_rows_public_view_strips_b2b_pricing():
     assert all(r["b2b_min1"] is None and r["b2b_breaks"] == [] for r in rows)
 
 
+# ------------------------------------------------------------ resolve_session
+
+
+def test_resolve_session_prefers_explicit_har(tmp_path, monkeypatch):
+    har = tmp_path / "s.har"
+    har.write_text(json.dumps({"log": {"entries": [{"request": {
+        "url": "https://us.b2b.vaultx.com/collections/zip-binders",
+        "headers": [{"name": "Cookie", "value": "sid=abc"},
+                    {"name": "User-Agent", "value": "RealBrowser/1.0"}],
+    }}]}}), encoding="utf-8")
+    monkeypatch.setenv("VAULTX_B2B_COOKIE", "env-cookie")  # HAR must still win
+    cookie, ua, source = vx.resolve_session(str(har))
+    assert cookie == "sid=abc"
+    assert ua == "RealBrowser/1.0"
+    assert "s.har" in source
+
+
+def test_resolve_session_uses_env_cookie(monkeypatch):
+    monkeypatch.setenv("VAULTX_B2B_COOKIE", "sid=from-env")
+    cookie, ua, source = vx.resolve_session()
+    assert cookie == "sid=from-env"
+    assert source == "VAULTX_B2B_COOKIE env var"
+
+
+def test_resolve_session_falls_back_to_browser_profile(tmp_path, monkeypatch):
+    import refresh_cookie
+    monkeypatch.delenv("VAULTX_B2B_COOKIE", raising=False)
+    monkeypatch.setattr(refresh_cookie, "DEFAULT_PROFILE", str(tmp_path))
+    monkeypatch.setattr(refresh_cookie, "harvest_cookie",
+                        lambda profile: "sid=from-profile")
+    cookie, ua, source = vx.resolve_session()
+    assert cookie == "sid=from-profile"
+    assert source == "browser profile"
+
+
+def test_resolve_session_none_when_no_source(tmp_path, monkeypatch):
+    import refresh_cookie
+    monkeypatch.delenv("VAULTX_B2B_COOKIE", raising=False)
+    monkeypatch.setattr(refresh_cookie, "DEFAULT_PROFILE",
+                        str(tmp_path / "missing"))
+    assert vx.resolve_session() is None
+
+
 # ------------------------------------------------------------ get_with_retry
 
 
@@ -251,8 +295,12 @@ def test_build_web_data_b2b_mode_via_cookie_env(monkeypatch, tmp_path):
 
 
 def test_build_web_data_falls_back_to_public_feed(monkeypatch, tmp_path):
+    import refresh_cookie
     route_requests(monkeypatch)
     monkeypatch.delenv("VAULTX_B2B_COOKIE", raising=False)
+    # keep the test off any real browser profile on this machine
+    monkeypatch.setattr(refresh_cookie, "DEFAULT_PROFILE",
+                        str(tmp_path / "no-profile"))
     out = tmp_path / "data.js"
     monkeypatch.setattr(sys, "argv", ["build_web_data.py", "--out", str(out)])
     build_web_data.main()

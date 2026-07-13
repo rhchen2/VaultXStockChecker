@@ -45,6 +45,13 @@ py scrape_vaultx.py --all
 py scrape_vaultx.py --collection deck-boxes --out DeckBoxes.pdf
 ```
 
+The scraper finds a logged-in B2B session automatically, in priority order:
+an explicit `--har` capture, the `VAULTX_B2B_COOKIE` env var, or the
+persistent browser profile maintained by `refresh_cookie.py` (so on the
+machine that runs the refresh task, plain `py scrape_vaultx.py` already
+produces the full B2B report). With no session it falls back to the public
+MSRP-only feed.
+
 ## B2B catalog & pricing (`--har`)
 
 The public endpoints only expose the MSRP and the publicly published subset of
@@ -208,6 +215,15 @@ If a run reports it's not logged in (Shopify forced a re-auth - rare), just
 run `--setup` again. The profile lives in the git-ignored `.browser-profile/`
 directory; treat it like a password. Use `--headed` if headless runs get
 blocked by bot protection.
+
+**How the session stays alive:** Shopify sessions expire on *idleness*, not
+on a fixed schedule, so each daily visit rolls the expiry forward
+indefinitely. The scheduled task is set to run as soon as possible after a
+missed 06:30 start (machine asleep/rebooting), and if a refresh ever fails —
+dead session or a `gh` push error — the script pings the Discord webhook in
+the `VAULTX_DISCORD_WEBHOOK` env var (set it machine-wide once with
+`setx VAULTX_DISCORD_WEBHOOK "https://discord.com/api/webhooks/..."`) so you
+find out the same morning instead of noticing MSRP prices on the site.
 
 ## Notes
 
