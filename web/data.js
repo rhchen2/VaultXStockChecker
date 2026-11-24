@@ -29,7 +29,7 @@ const STOCK = {
       "msrp": 31.99,
       "b2b_min1": 31.99,
       "breaks": [],
-      "status": "In Stock"
+      "status": "Sold Out"
     },
     {
       "size": "9-Pocket Exo-Tec® Zip Binder",
@@ -155,7 +155,7 @@ const STOCK = {
       "msrp": 24.99,
       "b2b_min1": 24.99,
       "breaks": [],
-      "status": "In Stock"
+      "status": "Sold Out"
     },
     {
       "size": "4-Pocket Exo-Tec® Zip Binder",
